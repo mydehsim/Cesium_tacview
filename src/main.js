@@ -23,6 +23,10 @@ import {
   ScreenSpaceEventType,
   ScreenSpaceEventHandler,
   Matrix4,
+  CallbackProperty,
+  Cartographic,
+  Ellipsoid,
+  EllipsoidGeodesic,
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "./style.css";
@@ -30,7 +34,7 @@ import "./style.css";
 // Step 1.2: Add your Cesium ion access token
 // See: https://cesium.com/learn/ion/cesium-ion-access-tokens/
 // See: https://cesium.com/platform/cesium-ion/pricing/#frequently-asked-questions
-Ion.defaultAccessToken = "your_ion_token_here";
+Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MzA4Mjc0MS1jY2M0LTRlYmQtYjc5My01OGQ4Yzk0OTMzMDAiLCJpZCI6MzU2NTM4LCJpYXQiOjE3NjIzMjU3NzB9.GnAL6LKzbzx6QcW8vprAwdkMHsWraP46l30QiQYduOU";
 
 // Step 1.3: Initialize the Cesium Viewer in the HTML element with the
 // `cesiumContainer` ID and visualize terrain
@@ -74,28 +78,244 @@ function setCamera() {
 }
 setCamera();
 
-// Step 2.1: Add a 3D model to the scene
-const position = Cartesian3.fromDegrees(-122.4875, 37.705, 300);
+// ============================================================================
+// ROUTE & BALLOON SYSTEM WITH GEODESIC CALCULATIONS
+// ============================================================================
 
-function addModel(position) {
-  const heading = CesiumMath.toRadians(135);
-  const pitch = 0;
-  const roll = 0;
-  const hpr = new HeadingPitchRoll(heading, pitch, roll);
-  const orientation = Transforms.headingPitchRollQuaternion(position, hpr);
+// Route configuration - all waypoints
+let routeConfig = {
+  waypoints: [
+    { lat: 41.0082, lon: 28.9784, altitude: 300, name: "Istanbul" }, // Waypoint 1
+    { lat: 37.9667, lon: 34.6781, altitude: 300, name: "Niğde" },   // Waypoint 2
+  ],
+  speedKmh: 100,
+};
 
-  viewer.entities.add({
-    name: "CesiumBalloon",
-    position: position,
-    orientation: orientation,
-    model: {
-      uri: "./src/CesiumBalloon.glb",
-      minimumPixelSize: 64,
-      maximumScale: 20000,
-    },
+// Movement state
+let isMoving = false;
+let distanceOffsetMeters = 0.0;
+let movementStartClock = viewer.clock.currentTime.clone();
+let currentGeodesic = null;
+let totalRouteDistance = 0;
+let pathPositions = [];
+
+// Tracked entities list for UI
+const trackedEntities = [];
+
+// Waypoint entities for dragging
+let waypointEntities = [];
+
+// Calculate geodesic route
+function calculateGeodesicRoute() {
+  const segments = [];
+  const points = routeConfig.waypoints;
+
+  if (points.length < 2) {
+    console.warn("Need at least 2 waypoints for route");
+    return segments;
+  }
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const startCarto = Cartographic.fromDegrees(
+      points[i].lon,
+      points[i].lat,
+      points[i].altitude || 300
+    );
+    const endCarto = Cartographic.fromDegrees(
+      points[i + 1].lon,
+      points[i + 1].lat,
+      points[i + 1].altitude || 300
+    );
+
+    const geodesic = new EllipsoidGeodesic(startCarto, endCarto);
+    segments.push({
+      geodesic,
+      distance: geodesic.surfaceDistance,
+      startCarto,
+      endCarto,
+    });
+  }
+
+  return segments;
+}
+
+// Get position along route at given distance
+function getPositionAtDistance(distanceMeters, segments) {
+  let remainingDistance = distanceMeters;
+
+  for (const segment of segments) {
+    if (remainingDistance <= segment.distance) {
+      const fraction = remainingDistance / segment.distance;
+      const interpCarto = segment.geodesic.interpolateUsingSurfaceDistance(
+        remainingDistance
+      );
+      // Interpolate altitude between segment start and end
+      const startAlt = segment.startCarto.height;
+      const endAlt = segment.endCarto.height;
+      interpCarto.height = startAlt + (endAlt - startAlt) * fraction;
+      return Ellipsoid.WGS84.cartographicToCartesian(interpCarto);
+    }
+    remainingDistance -= segment.distance;
+  }
+
+  // End of route
+  return Ellipsoid.WGS84.cartographicToCartesian(
+    segments[segments.length - 1].endCarto
+  );
+}
+
+// Initialize route
+let routeSegments = calculateGeodesicRoute();
+totalRouteDistance = routeSegments.reduce((sum, seg) => sum + seg.distance, 0);
+
+// Create waypoint markers
+function createWaypointMarkers() {
+  // Clear existing waypoint entities
+  waypointEntities.forEach(entity => viewer.entities.remove(entity));
+  waypointEntities = [];
+
+  routeConfig.waypoints.forEach((point, index) => {
+    const colors = [Color.GREEN, Color.BLUE, Color.ORANGE, Color.PURPLE, Color.CYAN];
+    const color = colors[index % colors.length];
+    
+    const entity = viewer.entities.add({
+      id: `waypoint_${index}`,
+      name: point.name || `Waypoint ${index + 1}`,
+      position: Cartesian3.fromDegrees(point.lon, point.lat, point.altitude || 300),
+      point: {
+        pixelSize: 15,
+        color: color,
+        outlineColor: Color.WHITE,
+        outlineWidth: 3,
+        heightReference: HeightReference.NONE,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      label: {
+        text: point.name || `WP${index + 1}`,
+        font: "12pt monospace",
+        style: LabelStyle.FILL_AND_OUTLINE,
+        outlineWidth: 3,
+        outlineColor: Color.fromCssColorString("#111723"),
+        fillColor: Color.GHOSTWHITE,
+        pixelOffset: new Cartesian2(0, -25),
+        heightReference: HeightReference.NONE,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      properties: {
+        waypointIndex: index
+      }
+    });
+
+    waypointEntities.push(entity);
   });
 }
-addModel(position);
+
+createWaypointMarkers();
+
+// Balloon position callback
+const balloonPosition = new CallbackProperty(function (time, result) {
+  if (!routeSegments.length) return Cartesian3.ZERO;
+
+  const elapsed = JulianDate.secondsDifference(time, movementStartClock);
+  const speedMps = (routeConfig.speedKmh * 1000) / 3600.0;
+  const movingDistance = distanceOffsetMeters + (isMoving ? elapsed * speedMps : 0.0);
+
+  const cartesian = getPositionAtDistance(movingDistance, routeSegments);
+
+  pathPositions.push(cartesian);
+  if (pathPositions.length > 3000) {
+    pathPositions.shift();
+  }
+
+  return result ? Cartesian3.clone(cartesian, result) : cartesian;
+}, false);
+
+// Balloon orientation
+const modelHeading = CesiumMath.toRadians(135);
+const modelHPR = new HeadingPitchRoll(modelHeading, 0, 0);
+
+// Balloon entity
+const balloonEntity = viewer.entities.add({
+  id: "CesiumBalloon",
+  name: "Cesium Balloon",
+  position: balloonPosition,
+  orientation: new CallbackProperty(function (time) {
+    const pos = balloonPosition.getValue(time);
+    return Transforms.headingPitchRollQuaternion(pos, modelHPR);
+  }, false),
+  model: {
+    uri: "./src/CesiumBalloon.glb",
+    minimumPixelSize: 64,
+    maximumScale: 20000,
+    runAnimations: true,
+  },
+  label: {
+    text: new CallbackProperty(function (time) {
+      const pos = balloonPosition.getValue(time);
+      const carto = Ellipsoid.WGS84.cartesianToCartographic(pos);
+      const lon = CesiumMath.toDegrees(carto.longitude).toFixed(5);
+      const lat = CesiumMath.toDegrees(carto.latitude).toFixed(5);
+      const height = carto.height.toFixed(1);
+      const elapsed = JulianDate.secondsDifference(time, movementStartClock);
+      const speedMps = (routeConfig.speedKmh * 1000) / 3600.0;
+      const distance = distanceOffsetMeters + (isMoving ? elapsed * speedMps : 0.0);
+      const distanceKm = (distance / 1000).toFixed(2);
+      const totalKm = (totalRouteDistance / 1000).toFixed(2);
+      const speed = isMoving ? `${routeConfig.speedKmh} km/h` : `stopped`;
+      return `Cesium Balloon\nLat: ${lat}°\nLon: ${lon}°\nAlt: ${height} m\n${speed}\n${distanceKm}/${totalKm} km`;
+    }, false),
+    font: "14pt monospace",
+    style: LabelStyle.FILL_AND_OUTLINE,
+    outlineWidth: 4,
+    outlineColor: Color.fromCssColorString("#111723"),
+    fillColor: Color.GHOSTWHITE,
+    pixelOffset: new Cartesian2(0, -80),
+    heightReference: HeightReference.NONE,
+  },
+});
+
+trackedEntities.push(balloonEntity);
+
+// Path polyline
+const pathEntity = viewer.entities.add({
+  id: "CesiumBalloonPath",
+  polyline: {
+    positions: new CallbackProperty(function () {
+      return pathPositions.slice();
+    }, false),
+    width: 3,
+    material: Color.YELLOW.withAlpha(0.9),
+    clampToGround: false,
+  },
+});
+
+// Movement controls
+function toggleMovement() {
+  const now = viewer.clock.currentTime.clone();
+  if (isMoving) {
+    const elapsed = JulianDate.secondsDifference(now, movementStartClock);
+    const speedMps = (routeConfig.speedKmh * 1000) / 3600.0;
+    distanceOffsetMeters += elapsed * speedMps;
+    isMoving = false;
+    console.log("Balloon paused. Total meters:", distanceOffsetMeters.toFixed(1));
+  } else {
+    movementStartClock = now;
+    isMoving = true;
+    console.log("Balloon resumed.");
+  }
+}
+
+// Keyboard shortcuts
+document.addEventListener("keydown", function (e) {
+  if (e.code === "KeyM") {
+    toggleMovement();
+  } else if (e.code === "KeyF") {
+    viewer.trackedEntity = viewer.trackedEntity ? undefined : balloonEntity;
+  }
+});
+
+console.log("Balloon initialized. Route:", routeConfig.start, "to", routeConfig.end);
+console.log("Controls: 'M' to toggle movement, 'F' to toggle camera follow.");
 
 // Step 2.2 Stream GeoJSON from a feature service
 async function addGeoJson() {
@@ -131,7 +351,7 @@ function getCategoryColor(category) {
 mapLayer.saturation = 2.0;
 mapLayer.contrast = 0.7;
 
-// Step 3.2 Style a polygon
+// Step 3.2 Style a polygon 
 const entities = geoJsonDataSourceReference.entities.values;
 for (let i = 0; i < entities.length; i++) {
   const entity = entities[i];
@@ -144,7 +364,7 @@ for (let i = 0; i < entities.length; i++) {
   }
 }
 
-// Step 3.3 Add label for a polygon
+// Step 3.3 Add label for a polygon (Alanın ortasında adı yazması ...)
 function getPolygonCenter(entity) {
   const hierarchy = entity.polygon.hierarchy.getValue(JulianDate.now());
   const positions = hierarchy.positions;
@@ -197,7 +417,7 @@ for (let i = 0; i < entities.length; i++) {
   }
 }
 
-// Step 3.5 Handle Custom Picking
+// Step 3.5 Handle Custom Picking (Farenin üzerinde bulunduğu noktanın bilgilerini gösterme)
 function addCustomPicking() {
   const entity = viewer.entities.add({
     label: {
@@ -238,6 +458,85 @@ function addCustomPicking() {
 }
 addCustomPicking();
 
+// ============================================================================
+// BALLOON CLICK HANDLER - Removed (buttons now in panel)
+// ============================================================================
+
+// ============================================================================
+// DRAGGABLE WAYPOINTS ON MAP
+// ============================================================================
+
+let draggedEntity = null;
+let isDragging = false;
+
+const waypointDragHandler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+
+// Mouse down - start dragging
+waypointDragHandler.setInputAction(function (click) {
+  const pickedObject = viewer.scene.pick(click.position);
+  if (defined(pickedObject) && defined(pickedObject.id)) {
+    const entity = pickedObject.id;
+    if (waypointEntities.includes(entity)) {
+      isDragging = true;
+      draggedEntity = entity;
+      viewer.scene.screenSpaceCameraController.enableRotate = false;
+      viewer.scene.screenSpaceCameraController.enableTranslate = false;
+    }
+  }
+}, ScreenSpaceEventType.LEFT_DOWN);
+
+// Mouse move - update position
+waypointDragHandler.setInputAction(function (movement) {
+  if (isDragging && draggedEntity) {
+    const ray = viewer.camera.getPickRay(movement.endPosition);
+    const cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+    
+    if (defined(cartesian)) {
+      draggedEntity.position = cartesian;
+    }
+  }
+}, ScreenSpaceEventType.MOUSE_MOVE);
+
+// Mouse up - finish dragging and update route
+waypointDragHandler.setInputAction(function () {
+  if (isDragging && draggedEntity) {
+    const cartesian = draggedEntity.position.getValue(viewer.clock.currentTime);
+    const carto = Ellipsoid.WGS84.cartesianToCartographic(cartesian);
+    const lat = CesiumMath.toDegrees(carto.latitude);
+    const lon = CesiumMath.toDegrees(carto.longitude);
+    const alt = carto.height;
+
+    const waypointIndex = draggedEntity.properties.waypointIndex.getValue();
+
+    // Update route config
+    if (routeConfig.waypoints[waypointIndex]) {
+      routeConfig.waypoints[waypointIndex].lat = lat;
+      routeConfig.waypoints[waypointIndex].lon = lon;
+      routeConfig.waypoints[waypointIndex].altitude = alt;
+      
+      // Update UI
+      renderWaypointList();
+    }
+
+    // Recalculate route
+    routeSegments = calculateGeodesicRoute();
+    totalRouteDistance = routeSegments.reduce((sum, seg) => sum + seg.distance, 0);
+    
+    // Reset movement
+    isMoving = false;
+    distanceOffsetMeters = 0.0;
+    movementStartClock = viewer.clock.currentTime.clone();
+    pathPositions = [];
+
+    console.log(`Waypoint ${waypointIndex + 1} updated: ${lat.toFixed(4)}, ${lon.toFixed(4)}, ${alt.toFixed(1)}m`);
+  }
+
+  isDragging = false;
+  draggedEntity = null;
+  viewer.scene.screenSpaceCameraController.enableRotate = true;
+  viewer.scene.screenSpaceCameraController.enableTranslate = true;
+}, ScreenSpaceEventType.LEFT_UP);
+
 // Step 4.1 Orbit a point when user holds down the Q key
 let orbitHandler;
 
@@ -267,9 +566,391 @@ document.addEventListener(
   function (e) {
     if (typeof e.code !== "undefined") {
       if (e.code === "KeyQ") {
-        toggleOrbit(position);
+        const pos = balloonPosition.getValue(viewer.clock.currentTime);
+        toggleOrbit(pos);
       }
     }
   },
   false,
 );
+
+// ============================================================================
+// UI INTEGRATION - ENTITY SELECTOR WITH INTEGRATED INFO PANEL
+// ============================================================================
+
+// Track last selected entity to avoid unnecessary updates
+let lastSelectedEntity = null;
+
+// Update info panel on selection change
+viewer.selectedEntityChanged.addEventListener(function () {
+  if (viewer.selectedEntity !== lastSelectedEntity) {
+    lastSelectedEntity = viewer.selectedEntity;
+    updateEntitySelector();
+  }
+});
+
+// Update periodically to refresh live data (but don't rebuild DOM)
+setInterval(function() {
+  if (viewer.selectedEntity) {
+    updateEntityDetails();
+  }
+}, 100);
+
+// Entity Selector Panel - lists all tracked entities with expandable details
+function updateEntitySelector() {
+  const entityList = document.getElementById("entityList");
+  entityList.innerHTML = "";
+
+  trackedEntities.forEach((entity) => {
+    const div = document.createElement("div");
+    div.className = "entity-item";
+    if (viewer.selectedEntity === entity) {
+      div.classList.add("selected");
+    }
+
+    const name = document.createElement("div");
+    name.className = "entity-item-name";
+    name.textContent = entity.name;
+
+    const info = document.createElement("div");
+    info.className = "entity-item-info";
+    info.textContent = entity.id;
+
+    div.appendChild(name);
+    div.appendChild(info);
+
+    // Add expanded details if this entity is selected
+    if (viewer.selectedEntity === entity) {
+      const details = document.createElement("div");
+      details.className = "entity-details";
+      details.id = "entityDetailsContent";
+      
+      details.innerHTML = getEntityDetailsHTML(entity);
+      
+      div.appendChild(details);
+    }
+
+    div.addEventListener("click", function () {
+      // Toggle selection - if already selected, deselect it
+      if (viewer.selectedEntity === entity) {
+        viewer.selectedEntity = undefined;
+        viewer.trackedEntity = undefined;
+        lastSelectedEntity = null;
+      } else {
+        viewer.selectedEntity = entity;
+        viewer.trackedEntity = entity;
+        lastSelectedEntity = entity;
+      }
+      updateEntitySelector();
+    });
+
+    entityList.appendChild(div);
+  });
+}
+
+// Get entity details HTML (separate function for updates)
+function getEntityDetailsHTML(entity) {
+  const pos = entity.position.getValue(viewer.clock.currentTime);
+  const carto = Ellipsoid.WGS84.cartesianToCartographic(pos);
+  const lon = CesiumMath.toDegrees(carto.longitude).toFixed(5);
+  const lat = CesiumMath.toDegrees(carto.latitude).toFixed(5);
+  const height = carto.height.toFixed(1);
+
+  const elapsed = JulianDate.secondsDifference(
+    viewer.clock.currentTime,
+    movementStartClock
+  );
+  const speedMps = (routeConfig.speedKmh * 1000) / 3600.0;
+  const distance = distanceOffsetMeters + (isMoving ? elapsed * speedMps : 0.0);
+  const distanceKm = (distance / 1000).toFixed(2);
+  const totalKm = (totalRouteDistance / 1000).toFixed(2);
+
+  return `
+    <div class="entity-details-title">Entity Info</div>
+    <div class="entity-details-row">
+      <span class="entity-details-label">Latitude:</span>
+      <span class="entity-details-value">${lat}°</span>
+    </div>
+    <div class="entity-details-row">
+      <span class="entity-details-label">Longitude:</span>
+      <span class="entity-details-value">${lon}°</span>
+    </div>
+    <div class="entity-details-row">
+      <span class="entity-details-label">Height:</span>
+      <span class="entity-details-value">${height} m</span>
+    </div>
+    <div class="entity-details-row">
+      <span class="entity-details-label">Speed:</span>
+      <span class="entity-details-value">${isMoving ? routeConfig.speedKmh : 0} km/h</span>
+    </div>
+    <div class="entity-details-row">
+      <span class="entity-details-label">Distance:</span>
+      <span class="entity-details-value">${distanceKm} / ${totalKm} km</span>
+    </div>
+    <div class="entity-details-row">
+      <span class="entity-details-label">Status:</span>
+      <span class="entity-details-value">${isMoving ? "Moving" : "Stopped"}</span>
+    </div>
+  `;
+}
+
+// Update only the details content without rebuilding entire list
+function updateEntityDetails() {
+  const detailsContent = document.getElementById("entityDetailsContent");
+  if (detailsContent && viewer.selectedEntity) {
+    detailsContent.innerHTML = getEntityDetailsHTML(viewer.selectedEntity);
+  }
+}
+
+updateEntitySelector();
+
+// ============================================================================
+// CONTROL PANEL - NEW WAYPOINT SYSTEM
+// ============================================================================
+
+const speedInput = document.getElementById("speed");
+const waypointList = document.getElementById("waypointList");
+const addWaypointBtn = document.getElementById("addWaypoint");
+const applyRouteBtn = document.getElementById("applyRoute");
+const startBtn = document.getElementById("startBtn");
+const stopBtn = document.getElementById("stopBtn");
+const resetBtn = document.getElementById("resetBtn");
+const controlPanel = document.getElementById("controlPanel");
+const toggleBtn = document.getElementById("toggleControlPanel");
+const closeBtn = document.getElementById("closePanel");
+
+// Toggle control panel
+let isPanelOpen = false;
+
+function openPanel() {
+  isPanelOpen = true;
+  controlPanel.classList.add("open");
+  toggleBtn.classList.add("panel-open");
+}
+
+function closePanel() {
+  isPanelOpen = false;
+  controlPanel.classList.remove("open");
+  toggleBtn.classList.remove("panel-open");
+}
+
+toggleBtn.addEventListener("click", function () {
+  if (isPanelOpen) {
+    closePanel();
+  } else {
+    openPanel();
+  }
+});
+
+closeBtn.addEventListener("click", function () {
+  closePanel();
+});
+
+// Open panel on page load (optional)
+setTimeout(function() {
+  openPanel();
+}, 500);
+
+// Waypoint list rendering
+function renderWaypointList() {
+  waypointList.innerHTML = "";
+  
+  routeConfig.waypoints.forEach((wp, index) => {
+    const div = document.createElement("div");
+    div.className = "waypoint-item";
+    div.dataset.index = index;
+    
+    div.innerHTML = `
+      <span class="waypoint-drag-handle" draggable="true">☰</span>
+      <span class="waypoint-number">#${index + 1}</span>
+      <div class="waypoint-inputs">
+        <div class="waypoint-input-row">
+          <input type="text" placeholder="Latitude" value="${wp.lat !== null ? wp.lat.toFixed(4) : ''}" class="wp-lat" />
+          <input type="text" placeholder="Longitude" value="${wp.lon !== null ? wp.lon.toFixed(4) : ''}" class="wp-lon" />
+        </div>
+        <div class="waypoint-input-row">
+          <input type="text" placeholder="Altitude (m)" value="${wp.altitude || ''}" class="wp-alt" />
+        </div>
+      </div>
+      <button class="waypoint-remove">×</button>
+    `;
+
+    // Remove waypoint
+    div.querySelector(".waypoint-remove").addEventListener("click", function () {
+      if (routeConfig.waypoints.length <= 2) {
+        alert("Need at least 2 waypoints for a route!");
+        return;
+      }
+      routeConfig.waypoints.splice(index, 1);
+      renderWaypointList();
+      applyRouteConfiguration();
+    });
+
+    // Update waypoint on input change
+    const inputs = div.querySelectorAll("input");
+    inputs.forEach(input => {
+      input.addEventListener("blur", function () {
+        const lat = parseFloat(div.querySelector(".wp-lat").value);
+        const lon = parseFloat(div.querySelector(".wp-lon").value);
+        const alt = parseFloat(div.querySelector(".wp-alt").value) || 300;
+        
+        if (!isNaN(lat) && !isNaN(lon)) {
+          routeConfig.waypoints[index] = { 
+            lat, 
+            lon, 
+            altitude: alt,
+            name: routeConfig.waypoints[index].name || `Waypoint ${index + 1}`
+          };
+          applyRouteConfiguration();
+        }
+      });
+    });
+
+    // Drag and drop for reordering - ONLY from drag handle
+    const dragHandle = div.querySelector(".waypoint-drag-handle");
+    
+    dragHandle.addEventListener("dragstart", function (e) {
+      div.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", index);
+    });
+
+    dragHandle.addEventListener("dragend", function () {
+      div.classList.remove("dragging");
+    });
+
+    div.addEventListener("dragover", function (e) {
+      e.preventDefault();
+      const dragging = document.querySelector(".dragging");
+      if (!dragging) return;
+      
+      const afterElement = getDragAfterElement(waypointList, e.clientY);
+      
+      if (afterElement == null) {
+        waypointList.appendChild(dragging);
+      } else {
+        waypointList.insertBefore(dragging, afterElement);
+      }
+    });
+
+    div.addEventListener("drop", function (e) {
+      e.preventDefault();
+      const dragging = document.querySelector(".dragging");
+      if (!dragging) return;
+      
+      // Get the current visual order from DOM
+      const allItems = [...waypointList.querySelectorAll(".waypoint-item")];
+      const newOrder = allItems.map(item => parseInt(item.dataset.index));
+      
+      // Reorder waypoints array according to visual order
+      const reorderedWaypoints = newOrder.map(idx => routeConfig.waypoints[idx]);
+      routeConfig.waypoints = reorderedWaypoints;
+      
+      renderWaypointList();
+      applyRouteConfiguration();
+    });
+
+    waypointList.appendChild(div);
+  });
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll(".waypoint-item:not(.dragging)")];
+  
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+// Add new waypoint
+addWaypointBtn.addEventListener("click", function () {
+  routeConfig.waypoints.push({
+    lat: null,
+    lon: null,
+    altitude: 300,
+    name: `Waypoint ${routeConfig.waypoints.length + 1}`
+  });
+  renderWaypointList();
+});
+
+// Apply route configuration
+function applyRouteConfiguration() {
+  routeConfig.speedKmh = parseInt(speedInput.value) || 100;
+
+  // Recalculate route
+  routeSegments = calculateGeodesicRoute();
+  totalRouteDistance = routeSegments.reduce((sum, seg) => sum + seg.distance, 0);
+
+  // Recreate waypoint markers
+  createWaypointMarkers();
+
+  // Reset movement
+  isMoving = false;
+  distanceOffsetMeters = 0.0;
+  movementStartClock = viewer.clock.currentTime.clone();
+  pathPositions = [];
+
+  // Fly camera to first waypoint
+  if (routeConfig.waypoints.length > 0) {
+    viewer.camera.flyTo({
+      destination: Cartesian3.fromDegrees(
+        routeConfig.waypoints[0].lon,
+        routeConfig.waypoints[0].lat,
+        50000
+      ),
+      duration: 2,
+    });
+  }
+
+  console.log("Route updated. Total distance:", (totalRouteDistance / 1000).toFixed(2), "km");
+}
+
+applyRouteBtn.addEventListener("click", applyRouteConfiguration);
+
+// Movement controls
+startBtn.addEventListener("click", function () {
+  if (!isMoving) {
+    movementStartClock = viewer.clock.currentTime.clone();
+    isMoving = true;
+    console.log("Balloon started");
+  }
+});
+
+stopBtn.addEventListener("click", function () {
+  if (isMoving) {
+    const now = viewer.clock.currentTime.clone();
+    const elapsed = JulianDate.secondsDifference(now, movementStartClock);
+    const speedMps = (routeConfig.speedKmh * 1000) / 3600.0;
+    distanceOffsetMeters += elapsed * speedMps;
+    isMoving = false;
+    console.log("Balloon stopped at", (distanceOffsetMeters / 1000).toFixed(2), "km");
+  }
+});
+
+resetBtn.addEventListener("click", function () {
+  isMoving = false;
+  distanceOffsetMeters = 0.0;
+  movementStartClock = viewer.clock.currentTime.clone();
+  pathPositions = [];
+  console.log("Balloon reset to start");
+});
+
+// Initialize waypoint list on load
+renderWaypointList();
+
+// Auto-select balloon entity after map loads (without auto-starting)
+viewer.scene.globe.tileLoadProgressEvent.addEventListener(function (remaining) {
+  if (remaining === 0) {
+    setTimeout(function() {
+      viewer.selectedEntity = balloonEntity;
+      console.log("Balloon selected. Press START to begin.");
+    }, 1000);
+  }
+});

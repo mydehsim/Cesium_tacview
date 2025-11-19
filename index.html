@@ -5,6 +5,47 @@
   </head>
   <body>
     <div id="cesiumContainer"></div>
+    
+    <!-- Toggle button for control panel -->
+    <button id="toggleControlPanel" class="toggle-control-panel" title="Toggle Route Configuration">
+      ☰
+    </button>
+    
+    <!-- Right-side entity selector panel with integrated info -->
+    <div id="entitySelector" class="entity-selector">
+      <h3>Entities</h3>
+      <div id="entityList"></div>
+    </div>
+    
+    <!-- Control panel for route configuration - collapsible from left -->
+    <div id="controlPanel" class="control-panel">
+      <h3>
+        Route Configuration
+        <button id="closePanel" class="close-panel-btn" title="Close Panel">×</button>
+      </h3>
+      
+      <!-- Movement controls -->
+      <div class="movement-controls">
+        <button id="startBtn" class="btn-start">▶ START</button>
+        <button id="stopBtn" class="btn-stop">■ STOP</button>
+        <button id="resetBtn" class="btn-reset">↻ RESTART</button>
+      </div>
+      
+      <div class="form-group">
+        <label>Speed (km/h):</label>
+        <input type="number" id="speed" value="100" min="1" max="1000" />
+      </div>
+      
+      <div class="form-group">
+        <label>Waypoints:</label>
+        <div class="waypoint-help">Drag to reorder waypoints</div>
+        <div id="waypointList" class="waypoint-list"></div>
+        <button id="addWaypoint" class="btn-add-waypoint">+ Add Waypoint</button>
+      </div>
+      
+      <button id="applyRoute" class="btn-apply">Apply Route</button>
+    </div>
+    
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
