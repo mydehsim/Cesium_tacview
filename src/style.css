@@ -45,6 +45,38 @@ body {
   transform: translateY(-50%) scale(0.95);
 }
 
+/* Object Management button - below hamburger */
+.toggle-object-panel {
+  position: fixed;
+  left: 20px;
+  top: calc(50% + 60px);
+  transform: translateY(-50%);
+  width: 45px;
+  height: 45px;
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 1001;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-object-panel:hover {
+  background: linear-gradient(135deg, #1976D2, #1565C0);
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 16px rgba(33, 150, 243, 0.6);
+}
+
+.toggle-object-panel:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
 /* Control panel - LEFT CENTER, collapsible */
 .control-panel {
   position: fixed;
@@ -95,6 +127,215 @@ body {
 /* Adjust toggle button when panel is open */
 .toggle-control-panel.panel-open {
   left: 370px;
+}
+
+.toggle-object-panel.panel-open {
+  left: 370px;
+}
+
+/* Object Management panel - same style as control panel */
+.object-panel {
+  position: fixed;
+  left: -400px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: linear-gradient(135deg, rgba(17, 23, 35, 0.98), rgba(30, 39, 56, 0.98));
+  backdrop-filter: blur(10px);
+  color: #f5f5f5;
+  padding: 20px;
+  border-radius: 0 12px 12px 0;
+  width: 360px;
+  max-width: calc(100vw - 80px);
+  max-height: 85vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.6), 0 0 40px rgba(33, 150, 243, 0.1);
+  z-index: 1000;
+  box-sizing: border-box;
+  transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(33, 150, 243, 0.2);
+}
+
+.object-panel::-webkit-scrollbar {
+  width: 5px;
+}
+
+.object-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.object-panel::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #2196F3, #1976D2);
+  border-radius: 3px;
+  transition: background 0.3s;
+}
+
+.object-panel::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #42A5F5, #2196F3);
+}
+
+.object-panel.open {
+  left: 0;
+}
+
+.object-panel h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(90deg, #2196F3, #42A5F5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(33, 150, 243, 0.3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.object-select {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(33, 150, 243, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.object-select:focus {
+  outline: none;
+  border-color: #2196F3;
+  background: rgba(33, 150, 243, 0.12);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+
+.object-select option {
+  background: #1e2738;
+  color: #fff;
+}
+
+.position-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.position-inputs input {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(33, 150, 243, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+}
+
+.position-inputs input:focus {
+  outline: none;
+  border-color: #2196F3;
+  background: rgba(33, 150, 243, 0.12);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+
+input[type="color"] {
+  width: 100%;
+  height: 50px;
+  padding: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(33, 150, 243, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+input[type="color"]:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+
+.btn-create-object {
+  width: 100%;
+  padding: 12px 16px;
+  background: #2196F3;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-create-object:hover {
+  background: #1976D2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+.btn-create-object:active {
+  transform: translateY(0);
+}
+
+.object-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 10px;
+}
+
+.object-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: rgba(33, 150, 243, 0.1);
+  border-radius: 6px;
+  border-left: 3px solid #2196F3;
+  transition: all 0.2s;
+}
+
+.object-item:hover {
+  background: rgba(33, 150, 243, 0.2);
+  transform: translateX(4px);
+}
+
+.object-item-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #42A5F5;
+}
+
+.object-item-type {
+  font-size: 11px;
+  color: #9e9e9e;
+}
+
+.btn-delete-object {
+  padding: 4px 8px;
+  background: rgba(244, 67, 54, 0.8);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.btn-delete-object:hover {
+  background: rgba(244, 67, 54, 1);
+  transform: scale(1.1);
 }
 
 /* Entity selector panel - RIGHT BOTTOM with integrated info */
@@ -552,4 +793,142 @@ body {
 
 .btn-apply:active {
   transform: translateY(0);
+}
+
+/* Export/Import Buttons */
+.btn-export, .btn-import {
+  flex: 1;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.btn-export:hover, .btn-import:hover {
+  background: linear-gradient(135deg, #AB47BC, #8E24AA);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(156, 39, 176, 0.3);
+}
+
+.btn-export:active, .btn-import:active {
+  transform: translateY(0);
+}
+
+/* File Input Styling */
+.file-input {
+  width: 100%;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px dashed rgba(33, 150, 243, 0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.file-input:hover {
+  border-color: #2196F3;
+  background: rgba(33, 150, 243, 0.12);
+}
+
+/* Group Management Styles */
+.btn-create-group {
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #673AB7, #512DA8);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+
+.btn-create-group:hover {
+  background: linear-gradient(135deg, #7E57C2, #5E35B1);
+  transform: scale(1.05);
+}
+
+.group-list {
+  max-height: 150px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.group-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: linear-gradient(135deg, rgba(103, 58, 183, 0.15), rgba(81, 45, 168, 0.15));
+  border-radius: 6px;
+  border-left: 3px solid #673AB7;
+  transition: all 0.2s;
+}
+
+.group-item:hover {
+  background: linear-gradient(135deg, rgba(103, 58, 183, 0.25), rgba(81, 45, 168, 0.25));
+  transform: translateX(4px);
+}
+
+.group-item-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #B39DDB;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group-item-count {
+  font-size: 11px;
+  color: #9e9e9e;
+  margin-left: 5px;
+}
+
+.group-item-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-toggle-group, .btn-delete-group {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.2s;
+}
+
+.btn-toggle-group {
+  background: rgba(76, 175, 80, 0.8);
+}
+
+.btn-toggle-group:hover {
+  background: rgba(76, 175, 80, 1);
+  transform: scale(1.1);
+}
+
+.btn-toggle-group.hidden {
+  background: rgba(158, 158, 158, 0.8);
+}
+
+.btn-delete-group {
+  background: rgba(244, 67, 54, 0.8);
+}
+
+.btn-delete-group:hover {
+  background: rgba(244, 67, 54, 1);
+  transform: scale(1.1);
 }

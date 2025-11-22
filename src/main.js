@@ -719,18 +719,68 @@ const controlPanel = document.getElementById("controlPanel");
 const toggleBtn = document.getElementById("toggleControlPanel");
 const closeBtn = document.getElementById("closePanel");
 
+// Object Management panel elements
+const objectPanel = document.getElementById("objectPanel");
+const toggleObjectBtn = document.getElementById("toggleObjectPanel");
+const closeObjectBtn = document.getElementById("closeObjectPanel");
+const objectTypeSelect = document.getElementById("objectType");
+const objectNameInput = document.getElementById("objectName");
+const objectLatInput = document.getElementById("objectLat");
+const objectLonInput = document.getElementById("objectLon");
+const objectAltInput = document.getElementById("objectAlt");
+const objectColorInput = document.getElementById("objectColor");
+const createObjectBtn = document.getElementById("createObject");
+const objectListDiv = document.getElementById("objectList");
+const modelFileInput = document.getElementById("modelFile");
+const modelScaleInput = document.getElementById("modelScale");
+const objectGroupSelect = document.getElementById("objectGroup");
+const createGroupBtn = document.getElementById("createGroup");
+const groupListDiv = document.getElementById("groupList");
+
+// Export/Import elements
+const exportJSONBtn = document.getElementById("exportJSON");
+const exportKMLBtn = document.getElementById("exportKML");
+const importFileInput = document.getElementById("importFile");
+
+// Created objects storage
+let createdObjects = [];
+let objectGroups = [];
+
 // Toggle control panel
 let isPanelOpen = false;
+let isObjectPanelOpen = false;
 
 function openPanel() {
+  if (isObjectPanelOpen) {
+    closeObjectPanel();
+  }
   isPanelOpen = true;
   controlPanel.classList.add("open");
   toggleBtn.classList.add("panel-open");
+  toggleObjectBtn.classList.add("panel-open");
 }
 
 function closePanel() {
   isPanelOpen = false;
   controlPanel.classList.remove("open");
+  toggleBtn.classList.remove("panel-open");
+  toggleObjectBtn.classList.remove("panel-open");
+}
+
+function openObjectPanel() {
+  if (isPanelOpen) {
+    closePanel();
+  }
+  isObjectPanelOpen = true;
+  objectPanel.classList.add("open");
+  toggleObjectBtn.classList.add("panel-open");
+  toggleBtn.classList.add("panel-open");
+}
+
+function closeObjectPanel() {
+  isObjectPanelOpen = false;
+  objectPanel.classList.remove("open");
+  toggleObjectBtn.classList.remove("panel-open");
   toggleBtn.classList.remove("panel-open");
 }
 
@@ -744,6 +794,36 @@ toggleBtn.addEventListener("click", function () {
 
 closeBtn.addEventListener("click", function () {
   closePanel();
+});
+
+toggleObjectBtn.addEventListener("click", function () {
+  if (isObjectPanelOpen) {
+    closeObjectPanel();
+  } else {
+    openObjectPanel();
+  }
+});
+
+closeObjectBtn.addEventListener("click", function () {
+  closeObjectPanel();
+});
+
+// Show/hide fields based on object type
+objectTypeSelect.addEventListener("change", function() {
+  const type = this.value;
+  const modelFileGroup = document.getElementById("modelFileGroup");
+  const modelScaleGroup = document.getElementById("modelScaleGroup");
+  const colorGroup = document.getElementById("colorGroup");
+  
+  if (type === "model") {
+    modelFileGroup.style.display = "block";
+    modelScaleGroup.style.display = "block";
+    colorGroup.style.display = "none";
+  } else {
+    modelFileGroup.style.display = "none";
+    modelScaleGroup.style.display = "none";
+    colorGroup.style.display = "block";
+  }
 });
 
 // Open panel on page load (optional)
@@ -953,4 +1033,506 @@ viewer.scene.globe.tileLoadProgressEvent.addEventListener(function (remaining) {
       console.log("Balloon selected. Press START to begin.");
     }, 1000);
   }
+});
+
+// ============================================================================
+// OBJECT MANAGEMENT SYSTEM
+// ============================================================================
+
+// Render object list
+function renderObjectList() {
+  objectListDiv.innerHTML = "";
+  
+  createdObjects.forEach((obj, index) => {
+    const div = document.createElement("div");
+    div.className = "object-item";
+    
+    div.innerHTML = `
+      <div>
+        <div class="object-item-name">${obj.name}</div>
+        <div class="object-item-type">${obj.type}</div>
+      </div>
+      <button class="btn-delete-object" data-index="${index}">Delete</button>
+    `;
+    
+    // Select object on click
+    div.addEventListener("click", function(e) {
+      if (!e.target.classList.contains("btn-delete-object")) {
+        viewer.selectedEntity = obj.entity;
+        viewer.trackedEntity = obj.entity;
+      }
+    });
+    
+    objectListDiv.appendChild(div);
+  });
+  
+  // Add delete button listeners
+  document.querySelectorAll(".btn-delete-object").forEach(btn => {
+    btn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      const index = parseInt(this.dataset.index);
+      const obj = createdObjects[index];
+      
+      // Remove entity from viewer
+      viewer.entities.remove(obj.entity);
+      
+      // Remove from array
+      createdObjects.splice(index, 1);
+      
+      // Re-render list
+      renderObjectList();
+      updateEntitySelector();
+    });
+  });
+}
+
+// Create object
+createObjectBtn.addEventListener("click", function() {
+  const type = objectTypeSelect.value;
+  const name = objectNameInput.value.trim() || `${type} ${createdObjects.length + 1}`;
+  const lat = parseFloat(objectLatInput.value);
+  const lon = parseFloat(objectLonInput.value);
+  const alt = parseFloat(objectAltInput.value) || 0;
+  const color = Color.fromCssColorString(objectColorInput.value);
+  
+  // Validate inputs
+  if (isNaN(lat) || isNaN(lon)) {
+    alert("Please enter valid latitude and longitude values");
+    return;
+  }
+  
+  if (lat < -90 || lat > 90) {
+    alert("Latitude must be between -90 and 90");
+    return;
+  }
+  
+  if (lon < -180 || lon > 180) {
+    alert("Longitude must be between -180 and 180");
+    return;
+  }
+  
+  let entity;
+  const position = Cartesian3.fromDegrees(lon, lat, alt);
+  
+  // Create entity based on type
+  switch(type) {
+    case "point":
+      entity = viewer.entities.add({
+        name: name,
+        position: position,
+        point: {
+          pixelSize: 12,
+          color: color,
+          outlineColor: Color.WHITE,
+          outlineWidth: 2
+        },
+        label: {
+          text: name,
+          font: "14pt sans-serif",
+          fillColor: Color.WHITE,
+          outlineColor: Color.BLACK,
+          outlineWidth: 2,
+          style: LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: VerticalOrigin.BOTTOM,
+          pixelOffset: new Cartesian2(0, -15)
+        }
+      });
+      break;
+      
+    case "line":
+      // For line, create a simple line from current position to 100km east
+      const endPos = Cartesian3.fromDegrees(lon + 1, lat, alt);
+      entity = viewer.entities.add({
+        name: name,
+        polyline: {
+          positions: [position, endPos],
+          width: 3,
+          material: color,
+          clampToGround: false
+        }
+      });
+      break;
+      
+    case "polygon":
+      // For polygon, create a simple square
+      const offset = 0.1;
+      entity = viewer.entities.add({
+        name: name,
+        polygon: {
+          hierarchy: Cartesian3.fromDegreesArray([
+            lon - offset, lat - offset,
+            lon + offset, lat - offset,
+            lon + offset, lat + offset,
+            lon - offset, lat + offset
+          ]),
+          material: color.withAlpha(0.5),
+          outline: true,
+          outlineColor: Color.WHITE,
+          outlineWidth: 2,
+          height: alt
+        }
+      });
+      break;
+      
+    case "model":
+      // Check if user uploaded a 3D model file
+      if (modelFileInput.files && modelFileInput.files[0]) {
+        const file = modelFileInput.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+          const blob = new Blob([e.target.result]);
+          const url = URL.createObjectURL(blob);
+          const scale = parseFloat(modelScaleInput.value) || 1;
+          
+          entity = viewer.entities.add({
+            name: name,
+            position: position,
+            model: {
+              uri: url,
+              minimumPixelSize: 64,
+              maximumScale: 20000,
+              scale: scale
+            },
+            label: {
+              text: name,
+              font: "14pt sans-serif",
+              fillColor: Color.WHITE,
+              outlineColor: Color.BLACK,
+              outlineWidth: 2,
+              style: LabelStyle.FILL_AND_OUTLINE,
+              verticalOrigin: VerticalOrigin.BOTTOM,
+              pixelOffset: new Cartesian2(0, -40)
+            }
+          });
+          
+          // Store object with group info
+          const group = objectGroupSelect.value;
+          createdObjects.push({
+            name: name,
+            type: type,
+            entity: entity,
+            group: group,
+            modelFile: file.name
+          });
+          
+          // Update UI
+          renderObjectList();
+          renderGroupList();
+          updateEntitySelector();
+          
+          // Select and fly to new object
+          viewer.selectedEntity = entity;
+          viewer.flyTo(entity, {
+            duration: 1.5,
+            offset: new HeadingPitchRange(0, -45 * Math.PI / 180, 5000)
+          });
+          
+          console.log(`Created 3D model: ${name} from ${file.name}`);
+        };
+        
+        reader.readAsArrayBuffer(file);
+        
+        // Clear inputs
+        objectNameInput.value = "";
+        objectLatInput.value = "";
+        objectLonInput.value = "";
+        objectAltInput.value = "0";
+        modelFileInput.value = "";
+        modelScaleInput.value = "1";
+        return; // Exit here since file loading is async
+      } else {
+        // Fallback to billboard if no model file
+        entity = viewer.entities.add({
+          name: name,
+          position: position,
+          billboard: {
+            image: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIGZpbGw9IiMyMTk2RjMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1zaXplPSIzMiIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPjNEPC90ZXh0Pjwvc3ZnPg==",
+            scale: 0.5,
+            verticalOrigin: VerticalOrigin.BOTTOM
+          },
+          label: {
+            text: name,
+            font: "14pt sans-serif",
+            fillColor: Color.WHITE,
+            outlineColor: Color.BLACK,
+            outlineWidth: 2,
+            style: LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: VerticalOrigin.BOTTOM,
+            pixelOffset: new Cartesian2(0, -40)
+          }
+        });
+      }
+      break;
+  }
+  
+  // Store object with group info
+  const group = objectGroupSelect.value;
+  createdObjects.push({
+    name: name,
+    type: type,
+    entity: entity,
+    group: group
+  });
+  
+  // Clear inputs
+  objectNameInput.value = "";
+  objectLatInput.value = "";
+  objectLonInput.value = "";
+  objectAltInput.value = "0";
+  
+  // Update UI
+  renderObjectList();
+  renderGroupList();
+  updateEntitySelector();
+  
+  // Select and fly to new object
+  viewer.selectedEntity = entity;
+  viewer.flyTo(entity, {
+    duration: 1.5,
+    offset: new HeadingPitchRange(0, -45 * Math.PI / 180, 5000)
+  });
+  
+  console.log(`Created ${type}: ${name} at (${lat}, ${lon})`);
+});
+
+// Initialize object list
+renderObjectList();
+
+// ============================================================================
+// GROUP MANAGEMENT SYSTEM
+// ============================================================================
+
+// Create new group
+createGroupBtn.addEventListener("click", function() {
+  const groupName = prompt("Enter group name:");
+  if (groupName && groupName.trim()) {
+    objectGroups.push({
+      name: groupName.trim(),
+      visible: true,
+      color: Color.fromRandom()
+    });
+    renderGroupList();
+    updateGroupSelect();
+  }
+});
+
+// Render group list
+function renderGroupList() {
+  groupListDiv.innerHTML = "";
+  
+  objectGroups.forEach((group, index) => {
+    const count = createdObjects.filter(obj => obj.group === group.name).length;
+    
+    const div = document.createElement("div");
+    div.className = "group-item";
+    
+    div.innerHTML = `
+      <div class="group-item-name">
+        📁 ${group.name}
+        <span class="group-item-count">(${count})</span>
+      </div>
+      <div class="group-item-actions">
+        <button class="btn-toggle-group ${!group.visible ? 'hidden' : ''}" data-index="${index}">
+          ${group.visible ? '👁️' : '🚫'}
+        </button>
+        <button class="btn-delete-group" data-index="${index}">Delete</button>
+      </div>
+    `;
+    
+    groupListDiv.appendChild(div);
+  });
+  
+  // Add event listeners
+  document.querySelectorAll(".btn-toggle-group").forEach(btn => {
+    btn.addEventListener("click", function() {
+      const index = parseInt(this.dataset.index);
+      objectGroups[index].visible = !objectGroups[index].visible;
+      
+      // Toggle visibility of all objects in this group
+      createdObjects.forEach(obj => {
+        if (obj.group === objectGroups[index].name) {
+          obj.entity.show = objectGroups[index].visible;
+        }
+      });
+      
+      renderGroupList();
+    });
+  });
+  
+  document.querySelectorAll(".btn-delete-group").forEach(btn => {
+    btn.addEventListener("click", function() {
+      const index = parseInt(this.dataset.index);
+      const groupName = objectGroups[index].name;
+      
+      if (confirm(`Delete group "${groupName}"? Objects will remain but lose group assignment.`)) {
+        // Remove group assignment from objects
+        createdObjects.forEach(obj => {
+          if (obj.group === groupName) {
+            obj.group = "";
+          }
+        });
+        
+        objectGroups.splice(index, 1);
+        renderGroupList();
+        updateGroupSelect();
+        renderObjectList();
+      }
+    });
+  });
+}
+
+// Update group select dropdown
+function updateGroupSelect() {
+  const currentValue = objectGroupSelect.value;
+  objectGroupSelect.innerHTML = '<option value="">No Group</option>';
+  
+  objectGroups.forEach(group => {
+    const option = document.createElement("option");
+    option.value = group.name;
+    option.textContent = group.name;
+    objectGroupSelect.appendChild(option);
+  });
+  
+  objectGroupSelect.value = currentValue;
+}
+
+// ============================================================================
+// EXPORT/IMPORT WAYPOINTS
+// ============================================================================
+
+// Export as JSON
+exportJSONBtn.addEventListener("click", function() {
+  const data = {
+    speed: routeConfig.speedKmh,
+    waypoints: routeConfig.waypoints
+  };
+  
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `route_${new Date().getTime()}.json`;
+  a.click();
+  
+  URL.revokeObjectURL(url);
+  console.log("Route exported as JSON");
+});
+
+// Export as KML
+exportKMLBtn.addEventListener("click", function() {
+  let kml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  kml += '<kml xmlns="http://www.opengis.net/kml/2.2">\n';
+  kml += '  <Document>\n';
+  kml += '    <name>Balloon Route</name>\n';
+  kml += '    <description>Route with waypoints</description>\n';
+  
+  // Add waypoints as placemarks
+  routeConfig.waypoints.forEach((wp, index) => {
+    if (wp.lat !== null && wp.lon !== null) {
+      kml += '    <Placemark>\n';
+      kml += `      <name>${wp.name || 'Waypoint ' + (index + 1)}</name>\n`;
+      kml += '      <Point>\n';
+      kml += `        <coordinates>${wp.lon},${wp.lat},${wp.altitude}</coordinates>\n`;
+      kml += '      </Point>\n';
+      kml += '    </Placemark>\n';
+    }
+  });
+  
+  // Add route line
+  kml += '    <Placemark>\n';
+  kml += '      <name>Route Path</name>\n';
+  kml += '      <LineString>\n';
+  kml += '        <coordinates>\n';
+  routeConfig.waypoints.forEach(wp => {
+    if (wp.lat !== null && wp.lon !== null) {
+      kml += `          ${wp.lon},${wp.lat},${wp.altitude}\n`;
+    }
+  });
+  kml += '        </coordinates>\n';
+  kml += '      </LineString>\n';
+  kml += '    </Placemark>\n';
+  
+  kml += '  </Document>\n';
+  kml += '</kml>';
+  
+  const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `route_${new Date().getTime()}.kml`;
+  a.click();
+  
+  URL.revokeObjectURL(url);
+  console.log("Route exported as KML");
+});
+
+// Import route
+importFileInput.addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  
+  reader.onload = function(event) {
+    try {
+      if (file.name.endsWith(".json")) {
+        // Import JSON
+        const data = JSON.parse(event.target.result);
+        
+        if (data.waypoints && Array.isArray(data.waypoints)) {
+          routeConfig.waypoints = data.waypoints;
+          if (data.speed) {
+            routeConfig.speedKmh = data.speed;
+            speedInput.value = data.speed;
+          }
+          
+          renderWaypointList();
+          applyRouteConfiguration();
+          console.log("Route imported from JSON");
+        }
+      } else if (file.name.endsWith(".kml")) {
+        // Import KML
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(event.target.result, "text/xml");
+        const placemarks = xmlDoc.getElementsByTagName("Placemark");
+        
+        const waypoints = [];
+        for (let i = 0; i < placemarks.length; i++) {
+          const name = placemarks[i].getElementsByTagName("name")[0]?.textContent || `Waypoint ${i + 1}`;
+          const coords = placemarks[i].getElementsByTagName("coordinates")[0]?.textContent.trim();
+          
+          if (coords) {
+            const [lon, lat, alt] = coords.split(",").map(s => parseFloat(s.trim()));
+            if (!isNaN(lat) && !isNaN(lon)) {
+              waypoints.push({
+                lat: lat,
+                lon: lon,
+                altitude: alt || 300,
+                name: name
+              });
+            }
+          }
+        }
+        
+        if (waypoints.length > 0) {
+          routeConfig.waypoints = waypoints;
+          renderWaypointList();
+          applyRouteConfiguration();
+          console.log("Route imported from KML");
+        }
+      }
+    } catch (error) {
+      console.error("Error importing file:", error);
+      alert("Error importing file. Please check the file format.");
+    }
+  };
+  
+  reader.readAsText(file);
+  
+  // Clear input
+  importFileInput.value = "";
 });
