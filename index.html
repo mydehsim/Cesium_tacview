@@ -44,8 +44,11 @@
       <div class="form-group">
         <label>Waypoints:</label>
         <div class="waypoint-help">Drag to reorder waypoints</div>
+        <button id="pickWaypointPosition" class="pick-map-btn" style="margin-bottom: 8px; background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold;">
+          📍 Add Waypoint from Map
+        </button>
         <div id="waypointList" class="waypoint-list"></div>
-        <button id="addWaypoint" class="btn-add-waypoint">+ Add Waypoint</button>
+        <button id="addWaypoint" class="btn-add-waypoint">+ Add Waypoint Manually</button>
       </div>
       
       <button id="applyRoute" class="btn-apply">Apply Route</button>
@@ -86,13 +89,40 @@
       
       <!-- 3D Model File Upload -->
       <div class="form-group" id="modelFileGroup" style="display: none;">
-        <label>3D Model File:</label>
+        <label>3D Model Source:</label>
+        <select id="modelSource" class="object-select">
+          <option value="upload">Upload Custom Model</option>
+          <option value="local">Use Local Model</option>
+        </select>
+      </div>
+      
+      <!-- Upload Custom Model -->
+      <div class="form-group" id="modelUploadGroup" style="display: none;">
+        <label>Upload File:</label>
         <input type="file" id="modelFile" accept=".gltf,.glb" class="file-input" />
         <small style="color: #999; font-size: 11px;">Supported: GLTF, GLB</small>
       </div>
       
+      <!-- Local Model Selection -->
+      <div class="form-group" id="modelLocalGroup" style="display: none;">
+        <label>Select Local Model:</label>
+        <select id="localModelSelect" class="object-select">
+          <option value="/models/balloon.glb">Cesium Balloon 🎈</option>
+          <option value="/models/aircraft.glb">Aircraft ✈️</option>
+          <option value="/models/autopilot_aircraft__drone.glb">Autopilot Drone 🚁</option>
+          <option value="/models/f16-c_falcon.glb">F-16 Falcon �️</option>
+          <option value="/models/helicopter.glb">Mech Drone 🤖</option>
+        </select>
+        <small style="color: #999; font-size: 11px; margin-top: 5px; display: block;">
+          📁 Models location: /public/models/
+        </small>
+      </div>
+      
       <div class="form-group">
         <label>Position:</label>
+        <button id="pickObjectPosition" class="pick-map-btn" style="margin-bottom: 8px; background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold;">
+          📍 Pick from Map
+        </button>
         <div class="position-inputs">
           <input type="number" id="objectLat" placeholder="Latitude" step="0.0001" />
           <input type="number" id="objectLon" placeholder="Longitude" step="0.0001" />

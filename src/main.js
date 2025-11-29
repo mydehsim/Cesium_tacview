@@ -62,18 +62,17 @@ viewer.clock.currentTime = customTime;
 viewer.clock.shouldAnimate = true;
 viewer.clock.multiplier = 60;
 
-// Step 1.7: Fly the camera to San Francisco at the given longitude, latitude, and height
-// and orient the camera at the given heading and pitch
+// Step 1.7: Fly the camera to balloon's initial position
 function setCamera() {
   viewer.camera.lookAtTransform(Matrix4.IDENTITY);
   viewer.camera.flyTo({
-    destination: Cartesian3.fromDegrees(-122.4075, 37.655, 400),
+    destination: Cartesian3.fromDegrees(28.9784, 41.0082, 5000), // Istanbul
     orientation: {
-      heading: CesiumMath.toRadians(310.0),
-      pitch: CesiumMath.toRadians(-10.0),
-      range: 250.0,
+      heading: CesiumMath.toRadians(0.0),
+      pitch: CesiumMath.toRadians(-45.0),
+      range: 5000.0,
     },
-    duration: 0,
+    duration: 2,
   });
 }
 setCamera();
@@ -214,7 +213,11 @@ createWaypointMarkers();
 
 // Balloon position callback
 const balloonPosition = new CallbackProperty(function (time, result) {
-  if (!routeSegments.length) return Cartesian3.ZERO;
+  // Default position (Istanbul) if no route
+  if (!routeSegments.length) {
+    const defaultPos = Cartesian3.fromDegrees(28.9784, 41.0082, 1000);
+    return result ? Cartesian3.clone(defaultPos, result) : defaultPos;
+  }
 
   const elapsed = JulianDate.secondsDifference(time, movementStartClock);
   const speedMps = (routeConfig.speedKmh * 1000) / 3600.0;
@@ -244,25 +247,34 @@ const balloonEntity = viewer.entities.add({
     return Transforms.headingPitchRollQuaternion(pos, modelHPR);
   }, false),
   model: {
-    uri: "./src/CesiumBalloon.glb",
-    minimumPixelSize: 64,
-    maximumScale: 20000,
+    uri: "/models/balloon.glb",
+    minimumPixelSize: 32,
     runAnimations: true,
   },
   label: {
     text: new CallbackProperty(function (time) {
       const pos = balloonPosition.getValue(time);
-      const carto = Ellipsoid.WGS84.cartesianToCartographic(pos);
-      const lon = CesiumMath.toDegrees(carto.longitude).toFixed(5);
-      const lat = CesiumMath.toDegrees(carto.latitude).toFixed(5);
-      const height = carto.height.toFixed(1);
-      const elapsed = JulianDate.secondsDifference(time, movementStartClock);
-      const speedMps = (routeConfig.speedKmh * 1000) / 3600.0;
-      const distance = distanceOffsetMeters + (isMoving ? elapsed * speedMps : 0.0);
-      const distanceKm = (distance / 1000).toFixed(2);
-      const totalKm = (totalRouteDistance / 1000).toFixed(2);
-      const speed = isMoving ? `${routeConfig.speedKmh} km/h` : `stopped`;
-      return `Cesium Balloon\nLat: ${lat}°\nLon: ${lon}°\nAlt: ${height} m\n${speed}\n${distanceKm}/${totalKm} km`;
+      if (!pos) {
+        return "Cesium Balloon\n(No route set)";
+      }
+      try {
+        const carto = Ellipsoid.WGS84.cartesianToCartographic(pos);
+        if (!carto) {
+          return "Cesium Balloon\n(No route set)";
+        }
+        const lon = CesiumMath.toDegrees(carto.longitude).toFixed(5);
+        const lat = CesiumMath.toDegrees(carto.latitude).toFixed(5);
+        const height = carto.height.toFixed(1);
+        const elapsed = JulianDate.secondsDifference(time, movementStartClock);
+        const speedMps = (routeConfig.speedKmh * 1000) / 3600.0;
+        const distance = distanceOffsetMeters + (isMoving ? elapsed * speedMps : 0.0);
+        const distanceKm = (distance / 1000).toFixed(2);
+        const totalKm = (totalRouteDistance / 1000).toFixed(2);
+        const speed = isMoving ? `${routeConfig.speedKmh} km/h` : `stopped`;
+        return `Cesium Balloon\nLat: ${lat}°\nLon: ${lon}°\nAlt: ${height} m\n${speed}\n${distanceKm}/${totalKm} km`;
+      } catch (error) {
+        return "Cesium Balloon\n(No route set)";
+      }
     }, false),
     font: "14pt monospace",
     style: LabelStyle.FILL_AND_OUTLINE,
@@ -599,58 +611,119 @@ setInterval(function() {
 // Entity Selector Panel - lists all tracked entities with expandable details
 function updateEntitySelector() {
   const entityList = document.getElementById("entityList");
-  entityList.innerHTML = "";
-
-  trackedEntities.forEach((entity) => {
-    const div = document.createElement("div");
-    div.className = "entity-item";
+  
+  // Get current entity items
+  const existingItems = Array.from(entityList.children);
+  const currentEntityIds = trackedEntities.map(e => e.id);
+  
+  // Remove items that no longer exist
+  existingItems.forEach(item => {
+    const entityId = item.dataset.entityId;
+    if (entityId && !currentEntityIds.includes(entityId)) {
+      entityList.removeChild(item);
+    }
+  });
+  
+  // Update or create items
+  trackedEntities.forEach((entity, index) => {
+    let div = entityList.querySelector(`[data-entity-id="${entity.id}"]`);
+    
+    // Create new item if it doesn't exist
+    if (!div) {
+      div = document.createElement("div");
+      div.className = "entity-item";
+      div.dataset.entityId = entity.id;
+      
+      const name = document.createElement("div");
+      name.className = "entity-item-name";
+      name.textContent = entity.name;
+      
+      const info = document.createElement("div");
+      info.className = "entity-item-info";
+      info.textContent = entity.id;
+      
+      div.appendChild(name);
+      div.appendChild(info);
+      
+      // Add click handler (only added once when item is created)
+      div.addEventListener("click", function handleEntityClick(e) {
+        // Stop event propagation
+        e.stopPropagation();
+        e.preventDefault();
+        
+        // Prevent click if clicking on delete button
+        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+          return;
+        }
+        
+        // Toggle selection and tracking
+        if (viewer.selectedEntity === entity) {
+          // Deselect and unlock camera
+          viewer.selectedEntity = undefined;
+          viewer.trackedEntity = undefined;
+          lastSelectedEntity = null;
+          
+          // Free camera movement
+          viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+          
+          console.log("Entity unlocked - camera free");
+        } else {
+          // Select and lock to entity
+          viewer.selectedEntity = entity;
+          viewer.trackedEntity = entity; // This locks camera to entity
+          lastSelectedEntity = entity;
+          
+          // Initial zoom to entity - camera will stay locked to it
+          viewer.zoomTo(entity, new HeadingPitchRange(
+            0,                              // heading: 0 degrees
+            CesiumMath.toRadians(-45),      // pitch: look down 45 degrees
+            2000                            // range: 2km distance
+          ));
+          
+          console.log("Entity locked:", entity.name);
+        }
+        
+        // Small delay to prevent immediate re-selection
+        setTimeout(() => {
+          updateEntitySelector();
+        }, 50);
+      });
+      
+      entityList.appendChild(div);
+    }
+    
+    // Update selected state
     if (viewer.selectedEntity === entity) {
       div.classList.add("selected");
-    }
-
-    const name = document.createElement("div");
-    name.className = "entity-item-name";
-    name.textContent = entity.name;
-
-    const info = document.createElement("div");
-    info.className = "entity-item-info";
-    info.textContent = entity.id;
-
-    div.appendChild(name);
-    div.appendChild(info);
-
-    // Add expanded details if this entity is selected
-    if (viewer.selectedEntity === entity) {
-      const details = document.createElement("div");
-      details.className = "entity-details";
-      details.id = "entityDetailsContent";
       
-      details.innerHTML = getEntityDetailsHTML(entity);
-      
-      div.appendChild(details);
-    }
-
-    div.addEventListener("click", function () {
-      // Toggle selection - if already selected, deselect it
-      if (viewer.selectedEntity === entity) {
-        viewer.selectedEntity = undefined;
-        viewer.trackedEntity = undefined;
-        lastSelectedEntity = null;
-      } else {
-        viewer.selectedEntity = entity;
-        viewer.trackedEntity = entity;
-        lastSelectedEntity = entity;
+      // Add or update details
+      let details = div.querySelector(".entity-details");
+      if (!details) {
+        details = document.createElement("div");
+        details.className = "entity-details";
+        details.id = "entityDetailsContent";
+        div.appendChild(details);
       }
-      updateEntitySelector();
-    });
-
-    entityList.appendChild(div);
+      details.innerHTML = getEntityDetailsHTML(entity);
+    } else {
+      div.classList.remove("selected");
+      
+      // Remove details if not selected
+      const details = div.querySelector(".entity-details");
+      if (details) {
+        div.removeChild(details);
+      }
+    }
   });
 }
 
 // Get entity details HTML (separate function for updates)
 function getEntityDetailsHTML(entity) {
   const pos = entity.position.getValue(viewer.clock.currentTime);
+  if (!pos) {
+    return `<div class="entity-details-title">Entity Info</div>
+            <div class="entity-details-row">No position data available</div>`;
+  }
   const carto = Ellipsoid.WGS84.cartesianToCartographic(pos);
   const lon = CesiumMath.toDegrees(carto.longitude).toFixed(5);
   const lat = CesiumMath.toDegrees(carto.latitude).toFixed(5);
@@ -664,6 +737,12 @@ function getEntityDetailsHTML(entity) {
   const distance = distanceOffsetMeters + (isMoving ? elapsed * speedMps : 0.0);
   const distanceKm = (distance / 1000).toFixed(2);
   const totalKm = (totalRouteDistance / 1000).toFixed(2);
+  
+  // Check if this entity can be deleted (not the balloon)
+  const isDeletable = entity !== balloonEntity;
+  const deleteButton = isDeletable 
+    ? `<button onclick="deleteSelectedEntity()" style="background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold;">🗑️ Delete Object</button>`
+    : '';
 
   return `
     <div class="entity-details-title">Entity Info</div>
@@ -691,6 +770,7 @@ function getEntityDetailsHTML(entity) {
       <span class="entity-details-label">Status:</span>
       <span class="entity-details-value">${isMoving ? "Moving" : "Stopped"}</span>
     </div>
+    ${deleteButton}
   `;
 }
 
@@ -702,6 +782,39 @@ function updateEntityDetails() {
   }
 }
 
+// Delete selected entity from entity selector
+window.deleteSelectedEntity = function() {
+  const entity = viewer.selectedEntity;
+  if (!entity || entity === balloonEntity) {
+    return; // Don't delete balloon
+  }
+  
+  // Find in created objects
+  const objIndex = createdObjects.findIndex(obj => obj.entity === entity);
+  if (objIndex > -1) {
+    // Remove from viewer
+    viewer.entities.remove(entity);
+    
+    // Remove from trackedEntities
+    const trackedIndex = trackedEntities.indexOf(entity);
+    if (trackedIndex > -1) {
+      trackedEntities.splice(trackedIndex, 1);
+    }
+    
+    // Remove from createdObjects
+    createdObjects.splice(objIndex, 1);
+    
+    // Deselect
+    viewer.selectedEntity = undefined;
+    
+    // Update UI
+    renderObjectList();
+    updateEntitySelector();
+    
+    console.log(`Deleted entity: ${entity.name}`);
+  }
+};
+
 updateEntitySelector();
 
 // ============================================================================
@@ -711,6 +824,7 @@ updateEntitySelector();
 const speedInput = document.getElementById("speed");
 const waypointList = document.getElementById("waypointList");
 const addWaypointBtn = document.getElementById("addWaypoint");
+const pickWaypointBtn = document.getElementById("pickWaypointPosition");
 const applyRouteBtn = document.getElementById("applyRoute");
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
@@ -729,10 +843,13 @@ const objectLatInput = document.getElementById("objectLat");
 const objectLonInput = document.getElementById("objectLon");
 const objectAltInput = document.getElementById("objectAlt");
 const objectColorInput = document.getElementById("objectColor");
+const pickObjectBtn = document.getElementById("pickObjectPosition");
 const createObjectBtn = document.getElementById("createObject");
 const objectListDiv = document.getElementById("objectList");
 const modelFileInput = document.getElementById("modelFile");
 const modelScaleInput = document.getElementById("modelScale");
+const modelSourceSelect = document.getElementById("modelSource");
+const localModelSelect = document.getElementById("localModelSelect");
 const objectGroupSelect = document.getElementById("objectGroup");
 const createGroupBtn = document.getElementById("createGroup");
 const groupListDiv = document.getElementById("groupList");
@@ -808,6 +925,123 @@ closeObjectBtn.addEventListener("click", function () {
   closeObjectPanel();
 });
 
+// ============================================
+// MAP POSITION PICKER FUNCTIONALITY
+// ============================================
+let isPickingPosition = false;
+let pickingMode = null; // 'object' or 'waypoint'
+let tempMarker = null;
+
+function enablePositionPicker(mode) {
+  isPickingPosition = true;
+  pickingMode = mode;
+  viewer.container.style.cursor = "crosshair";
+  
+  // Update button states
+  if (mode === 'object') {
+    pickObjectBtn.textContent = "❌ Cancel Pick";
+    pickObjectBtn.style.background = "#f44336";
+  } else if (mode === 'waypoint') {
+    pickWaypointBtn.textContent = "❌ Cancel Pick";
+    pickWaypointBtn.style.background = "#f44336";
+  }
+}
+
+function disablePositionPicker() {
+  isPickingPosition = false;
+  pickingMode = null;
+  viewer.container.style.cursor = "default";
+  
+  // Reset button states
+  pickObjectBtn.textContent = "📍 Pick from Map";
+  pickObjectBtn.style.background = "#4CAF50";
+  pickWaypointBtn.textContent = "📍 Add Waypoint from Map";
+  pickWaypointBtn.style.background = "#4CAF50";
+  
+  // Remove temp marker
+  if (tempMarker) {
+    viewer.entities.remove(tempMarker);
+    tempMarker = null;
+  }
+}
+
+// Map click handler for position picking
+const mapPickHandler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+mapPickHandler.setInputAction(function(click) {
+  if (!isPickingPosition) return;
+  
+  const ray = viewer.camera.getPickRay(click.position);
+  const cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+  
+  if (defined(cartesian)) {
+    const cartographic = Ellipsoid.WGS84.cartesianToCartographic(cartesian);
+    const lat = CesiumMath.toDegrees(cartographic.latitude);
+    const lon = CesiumMath.toDegrees(cartographic.longitude);
+    const alt = cartographic.height;
+    
+    // Show temp marker
+    if (tempMarker) {
+      viewer.entities.remove(tempMarker);
+    }
+    tempMarker = viewer.entities.add({
+      position: cartesian,
+      point: {
+        pixelSize: 15,
+        color: Color.YELLOW,
+        outlineColor: Color.BLACK,
+        outlineWidth: 2,
+      },
+      label: {
+        text: `📍 Selected\nLat: ${lat.toFixed(5)}\nLon: ${lon.toFixed(5)}`,
+        font: "12px sans-serif",
+        style: LabelStyle.FILL_AND_OUTLINE,
+        outlineWidth: 2,
+        verticalOrigin: VerticalOrigin.BOTTOM,
+        pixelOffset: new Cartesian2(0, -15),
+        backgroundColor: Color.BLACK.withAlpha(0.7),
+        showBackground: true,
+        backgroundPadding: new Cartesian2(7, 5),
+      }
+    });
+    
+    if (pickingMode === 'object') {
+      // Fill object position inputs
+      objectLatInput.value = lat.toFixed(5);
+      objectLonInput.value = lon.toFixed(5);
+      objectAltInput.value = alt.toFixed(1);
+    } else if (pickingMode === 'waypoint') {
+      // Add waypoint directly
+      addWaypoint(lat, lon, alt);
+    }
+    
+    // Disable picker after selection
+    disablePositionPicker();
+  }
+}, ScreenSpaceEventType.LEFT_CLICK);
+
+// Pick position button handlers
+pickObjectBtn.addEventListener("click", function() {
+  if (isPickingPosition && pickingMode === 'object') {
+    disablePositionPicker();
+  } else {
+    disablePositionPicker(); // Clear any other picking mode
+    enablePositionPicker('object');
+  }
+});
+
+pickWaypointBtn.addEventListener("click", function() {
+  if (isPickingPosition && pickingMode === 'waypoint') {
+    disablePositionPicker();
+  } else {
+    disablePositionPicker(); // Clear any other picking mode
+    enablePositionPicker('waypoint');
+  }
+});
+
+// ============================================
+// END MAP POSITION PICKER
+// ============================================
+
 // Show/hide fields based on object type
 objectTypeSelect.addEventListener("change", function() {
   const type = this.value;
@@ -819,12 +1053,35 @@ objectTypeSelect.addEventListener("change", function() {
     modelFileGroup.style.display = "block";
     modelScaleGroup.style.display = "block";
     colorGroup.style.display = "none";
+    // Trigger model source change to show default option
+    if (modelSourceSelect) {
+      modelSourceSelect.dispatchEvent(new Event('change'));
+    }
   } else {
     modelFileGroup.style.display = "none";
     modelScaleGroup.style.display = "none";
     colorGroup.style.display = "block";
+    document.getElementById("modelUploadGroup").style.display = "none";
+    document.getElementById("modelLocalGroup").style.display = "none";
   }
 });
+
+// Show/hide model source options
+if (modelSourceSelect) {
+  modelSourceSelect.addEventListener("change", function() {
+    const source = this.value;
+    const modelUploadGroup = document.getElementById("modelUploadGroup");
+    const modelLocalGroup = document.getElementById("modelLocalGroup");
+    
+    if (source === "upload") {
+      modelUploadGroup.style.display = "block";
+      modelLocalGroup.style.display = "none";
+    } else if (source === "local") {
+      modelUploadGroup.style.display = "none";
+      modelLocalGroup.style.display = "block";
+    }
+  });
+}
 
 // Open panel on page load (optional)
 setTimeout(function() {
@@ -1025,12 +1282,18 @@ resetBtn.addEventListener("click", function () {
 // Initialize waypoint list on load
 renderWaypointList();
 
-// Auto-select balloon entity after map loads (without auto-starting)
+// Apply initial route (Istanbul -> Niğde)
+applyRouteConfiguration();
+
+// Auto-select and track balloon entity after map loads (only once)
+let initialBalloonSelectionDone = false;
 viewer.scene.globe.tileLoadProgressEvent.addEventListener(function (remaining) {
-  if (remaining === 0) {
+  if (remaining === 0 && !initialBalloonSelectionDone) {
+    initialBalloonSelectionDone = true;
     setTimeout(function() {
       viewer.selectedEntity = balloonEntity;
-      console.log("Balloon selected. Press START to begin.");
+      viewer.trackedEntity = balloonEntity; // Lock camera to balloon
+      console.log("Balloon tracked with Istanbul -> Niğde route. Press START to begin.");
     }, 1000);
   }
 });
@@ -1075,6 +1338,12 @@ function renderObjectList() {
       
       // Remove entity from viewer
       viewer.entities.remove(obj.entity);
+      
+      // Remove from trackedEntities
+      const trackedIndex = trackedEntities.indexOf(obj.entity);
+      if (trackedIndex > -1) {
+        trackedEntities.splice(trackedIndex, 1);
+      }
       
       // Remove from array
       createdObjects.splice(index, 1);
@@ -1175,23 +1444,87 @@ createObjectBtn.addEventListener("click", function() {
       break;
       
     case "model":
-      // Check if user uploaded a 3D model file
-      if (modelFileInput.files && modelFileInput.files[0]) {
+      const modelSource = modelSourceSelect ? modelSourceSelect.value : "upload";
+      const scale = parseFloat(modelScaleInput.value) || 1;
+      
+      if (modelSource === "local") {
+        // Use local model from project
+        const modelUri = localModelSelect.value;
+        
+        console.log("Creating local model:", modelUri);
+        
+        entity = viewer.entities.add({
+          name: name,
+          position: position,
+          model: {
+            uri: modelUri,
+            minimumPixelSize: 32,
+            scale: scale
+          },
+          label: {
+            text: name,
+            font: "14pt sans-serif",
+            fillColor: Color.WHITE,
+            outlineColor: Color.BLACK,
+            outlineWidth: 2,
+            style: LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: VerticalOrigin.BOTTOM,
+            pixelOffset: new Cartesian2(0, -40)
+          }
+        });
+        
+        // Store object with group info
+        const group = objectGroupSelect.value;
+        createdObjects.push({
+          name: name,
+          type: type,
+          entity: entity,
+          group: group,
+          modelSource: "local",
+          modelUri: modelUri
+        });
+        
+        // Add to tracked entities for selector
+        trackedEntities.push(entity);
+        
+        // Update UI
+        renderObjectList();
+        renderGroupList();
+        updateEntitySelector();
+        
+        // Select and fly to new object
+        viewer.selectedEntity = entity;
+        viewer.flyTo(entity, {
+          duration: 1.5,
+          offset: new HeadingPitchRange(0, -45 * Math.PI / 180, 5000)
+        });
+        
+        console.log(`Created 3D model: ${name} from local model ${modelUri}`);
+        
+        // Clear inputs
+        objectNameInput.value = "";
+        objectLatInput.value = "";
+        objectLonInput.value = "";
+        objectAltInput.value = "0";
+        modelScaleInput.value = "1";
+        
+        return; // Exit - local model creation complete
+        
+      } else if (modelFileInput.files && modelFileInput.files[0]) {
+        // Upload custom model file
         const file = modelFileInput.files[0];
         const reader = new FileReader();
         
         reader.onload = function(e) {
           const blob = new Blob([e.target.result]);
           const url = URL.createObjectURL(blob);
-          const scale = parseFloat(modelScaleInput.value) || 1;
           
           entity = viewer.entities.add({
             name: name,
             position: position,
             model: {
               uri: url,
-              minimumPixelSize: 64,
-              maximumScale: 20000,
+              minimumPixelSize: 32,
               scale: scale
             },
             label: {
@@ -1215,6 +1548,9 @@ createObjectBtn.addEventListener("click", function() {
             group: group,
             modelFile: file.name
           });
+          
+          // Add to tracked entities for selector
+          trackedEntities.push(entity);
           
           // Update UI
           renderObjectList();
@@ -1240,29 +1576,14 @@ createObjectBtn.addEventListener("click", function() {
         objectAltInput.value = "0";
         modelFileInput.value = "";
         modelScaleInput.value = "1";
-        return; // Exit here since file loading is async
+        
+        return; // Exit - async file loading in progress
+        
       } else {
-        // Fallback to billboard if no model file
-        entity = viewer.entities.add({
-          name: name,
-          position: position,
-          billboard: {
-            image: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIGZpbGw9IiMyMTk2RjMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1zaXplPSIzMiIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPjNEPC90ZXh0Pjwvc3ZnPg==",
-            scale: 0.5,
-            verticalOrigin: VerticalOrigin.BOTTOM
-          },
-          label: {
-            text: name,
-            font: "14pt sans-serif",
-            fillColor: Color.WHITE,
-            outlineColor: Color.BLACK,
-            outlineWidth: 2,
-            style: LabelStyle.FILL_AND_OUTLINE,
-            verticalOrigin: VerticalOrigin.BOTTOM,
-            pixelOffset: new Cartesian2(0, -40)
-          }
-        });
+        alert("Please select a local model or upload a custom model file");
+        return; // Exit - no model selected
       }
+      // Note: This break is unreachable due to returns above
       break;
   }
   
@@ -1274,6 +1595,9 @@ createObjectBtn.addEventListener("click", function() {
     entity: entity,
     group: group
   });
+  
+  // Add to tracked entities for selector
+  trackedEntities.push(entity);
   
   // Clear inputs
   objectNameInput.value = "";
