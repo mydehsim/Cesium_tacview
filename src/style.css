@@ -3,14 +3,20 @@ body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+body.tcp-panel-visible #cesiumContainer {
+  margin-left: 380px;
+}
+
 #cesiumContainer {
   background: gray;
   height: 100vh;
   width: 100%;
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  z-index: 1;
+  z-index: 0;
+  transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-left: 0;
 }
 
 /* Toggle button for control panel */

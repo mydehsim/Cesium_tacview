@@ -31,6 +31,13 @@ import {
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "./style.css";
 
+// TCP & Track Injection Modules
+import TcpClient from "./modules/tcp/TcpClient.js";
+import TcpConfig from "./modules/tcp/TcpConfig.js";
+import XmlBuilder from "./modules/tcp/XmlBuilder.js";
+import ControlPanel from "./modules/ui/ControlPanel.js";
+import TrackVisualizer from "./modules/ui/TrackVisualizer.js";
+
 // Step 1.2: Add your Cesium ion access token
 // See: https://cesium.com/learn/ion/cesium-ion-access-tokens/
 // See: https://cesium.com/platform/cesium-ion/pricing/#frequently-asked-questions
@@ -52,6 +59,119 @@ viewer.imageryLayers.add(mapLayer);
 // Step 1.5: Add Cesium OSM Buildings, a global 3D buildings layer.
 const buildingTileset = await createOsmBuildingsAsync();
 viewer.scene.primitives.add(buildingTileset);
+
+// ============================================================================
+// TCP CONNECTION & TRACK VISUALIZATION SYSTEM
+// ============================================================================
+
+// Initialize TCP Client
+const tcpClient = new TcpClient();
+
+// Initialize Control Panel with UI
+ControlPanel.injectStyles();
+const tcpControlPanel = new ControlPanel(tcpClient);
+
+// Initialize Track Visualizer
+const trackVisualizer = new TrackVisualizer(viewer);
+
+// Sample tracks for testing
+let sampleTracks = [
+  {
+    number: 1,
+    callSign: "ALPHA-01",
+    type: "Fighter",
+    color: "FF0000",
+    waypoints: [
+      { latitude: 41.0082, longitude: 28.9784, altitude: 5000, time: 0 },
+      { latitude: 41.1, longitude: 28.95, altitude: 5100, time: 60 },
+      { latitude: 41.15, longitude: 28.9, altitude: 5200, time: 120 },
+    ],
+  },
+  {
+    number: 2,
+    callSign: "BRAVO-02",
+    type: "Transport",
+    color: "0000FF",
+    waypoints: [
+      { latitude: 40.9, longitude: 28.8, altitude: 3000, time: 0 },
+      { latitude: 40.95, longitude: 29.0, altitude: 3100, time: 60 },
+      { latitude: 41.0, longitude: 29.2, altitude: 3200, time: 120 },
+    ],
+  },
+];
+
+// Expose to window for testing
+window.tcpClient = tcpClient;
+window.trackVisualizer = trackVisualizer;
+window.tcpControlPanel = tcpControlPanel;
+window.sampleTracks = sampleTracks;
+
+// Auto-connect on load
+window.addEventListener("load", () => {
+  console.log("[Main] Page loaded!");
+  console.log("[Main] TCP Panel:", tcpControlPanel);
+  console.log("[Main] Panel element:", tcpControlPanel.panel);
+  
+  console.log("[Main] Auto-connecting TCP...");
+  tcpClient.connect();
+  
+  // Update control panel track list
+  tcpControlPanel.updateTrackList(sampleTracks);
+  
+  // Auto-open panel
+  console.log("[Main] Opening TCP panel...");
+  tcpControlPanel.isOpen = false;
+  tcpControlPanel.togglePanel();
+  console.log("[Main] Panel classes:", tcpControlPanel.panel.className);
+  console.log("[Main] Panel opened!");
+  
+  // Visualize sample tracks and focus on them
+  console.log("[Main] Visualizing tracks...");
+  trackVisualizer.visualizeAllTracks(sampleTracks);
+  
+  // Focus camera on Istanbul area (where the tracks are)
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 500000), // Istanbul, 500km altitude
+    orientation: {
+      heading: Cesium.Math.toRadians(0),
+      pitch: Cesium.Math.toRadians(-45),
+      roll: 0.0
+    },
+    duration: 3 // 3 second flight
+  });
+});
+
+// Aç/kapat butonu hazırla - konsolda test için
+window.toggleTcpPanel = () => {
+  console.log("[Test] Toggling TCP Panel...");
+  tcpControlPanel.togglePanel();
+  console.log("[Test] Panel is now:", tcpControlPanel.isOpen ? "OPEN" : "CLOSED");
+};
+
+// Global functions for console testing
+window.sendSampleTracks = async () => {
+  console.log("[Test] Sending sample tracks...");
+  try {
+    await tcpClient.sendTracks(sampleTracks);
+    console.log("[Test] ✅ Sample tracks sent successfully");
+  } catch (error) {
+    console.error("[Test] ❌ Send error:", error);
+  }
+};
+
+window.resetTelemetry = async () => {
+  console.log("[Test] Sending reset command...");
+  try {
+    await tcpClient.reset();
+    console.log("[Test] ✅ Reset command sent");
+  } catch (error) {
+    console.error("[Test] ❌ Reset error:", error);
+  }
+};
+
+// ============================================================================
+// EXISTING CESIUM FUNCTIONALITY CONTINUES BELOW
+// ============================================================================
 
 // Step 1.6: Enable lighting the globe, set time of day, and turn on animation sped up 60x
 viewer.scene.globe.enableLighting = true;
