@@ -19,6 +19,7 @@ import {
   Transforms,
   Math as CesiumMath,
   ConstantPositionProperty,
+  Quaternion,
 } from "cesium";
 
 export class EntityRenderer {
@@ -97,8 +98,16 @@ export class EntityRenderer {
       const pos = Cartesian3.fromDegrees(delta.lon, delta.lat, delta.alt);
       entry.entity.position = pos;
 
-      // Update label text
+      // Update orientation (heading/pitch/roll)
+      const heading = CesiumMath.toRadians(delta.heading || 0);
+      const pitch = CesiumMath.toRadians(delta.pitch || 0);
+      const roll = CesiumMath.toRadians(delta.roll || 0);
+      const hpr = new HeadingPitchRoll(heading, pitch, roll);
+      entry.entity.orientation = Transforms.headingPitchRollQuaternion(pos, hpr);
+
+      // Update label position + text
       if (entry.label) {
+        entry.label.position = pos;
         entry.label.label.text = `${entry.callSign || id}\n${delta.alt?.toFixed(0) || 0}m | ${delta.speed?.toFixed(0) || 0}m/s`;
       }
     }
@@ -146,10 +155,18 @@ export class EntityRenderer {
     const modelUri =
       state.modelUri || this.defaultModels[state.type] || this.defaultModels.Fighter;
 
+    // Heading/Pitch/Roll orientation
+    const heading = CesiumMath.toRadians(state.heading || 0);
+    const pitch = CesiumMath.toRadians(state.pitch || 0);
+    const roll = CesiumMath.toRadians(state.roll || 0);
+    const hpr = new HeadingPitchRoll(heading, pitch, roll);
+    const orientation = Transforms.headingPitchRollQuaternion(position, hpr);
+
     const entity = this.viewer.entities.add({
       id: `aircraft_${id}`,
       name: state.callSign || id,
       position: position,
+      orientation: orientation,
       model: {
         uri: modelUri,
         minimumPixelSize: 32,
@@ -193,6 +210,13 @@ export class EntityRenderer {
     const pos = Cartesian3.fromDegrees(state.lon, state.lat, state.alt || 0);
     entry.entity.position = pos;
     entry.callSign = state.callSign || id;
+
+    // Update orientation (heading/pitch/roll)
+    const heading = CesiumMath.toRadians(state.heading || 0);
+    const pitch = CesiumMath.toRadians(state.pitch || 0);
+    const roll = CesiumMath.toRadians(state.roll || 0);
+    const hpr = new HeadingPitchRoll(heading, pitch, roll);
+    entry.entity.orientation = Transforms.headingPitchRollQuaternion(pos, hpr);
 
     if (entry.label) {
       entry.label.position = pos;

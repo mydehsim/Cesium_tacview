@@ -35,6 +35,7 @@ private slots:
     void onTickCompleted(quint64 tick);
     void onCreateAircraft();
     void onDeleteAircraft(const QString &id);
+    void onMapClicked(double lat, double lon, double alt);
 
 private:
     void setupUi();

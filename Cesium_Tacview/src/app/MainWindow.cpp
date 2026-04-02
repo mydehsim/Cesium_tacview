@@ -10,6 +10,7 @@
 #include "ui/RouteEditorPanel.h"
 #include "ui/SimulationLogPanel.h"
 #include "ui/CommandHistoryPanel.h"
+#include "core/RouteState.h"
 
 #include <QKeyEvent>
 #include <QStatusBar>
@@ -148,6 +149,9 @@ void MainWindow::setupConnections()
     connect(m_bridge, &CesiumBridge::entityClicked, this, [this](const QString &id, const QString &) {
         m_logPanel->appendLog(QStringLiteral("Entity clicked: %1").arg(id));
     });
+
+    // Map click → add waypoint to active route
+    connect(m_bridge, &CesiumBridge::mapClicked, this, &MainWindow::onMapClicked);
 
     // Simulation tick → push delta to Cesium
     connect(m_simEngine, &SimulationEngine::tickCompleted, this, &MainWindow::onTickCompleted);
@@ -292,6 +296,69 @@ void MainWindow::onDeleteAircraft(const QString &id)
         m_appState->selectionManager()->clearSelection();
     m_bridge->pushFullSync();
     m_logPanel->appendLog(QStringLiteral("Deleted aircraft: %1").arg(id));
+}
+
+void MainWindow::onMapClicked(double lat, double lon, double alt)
+{
+    // Determine the active route — use the route selected in RouteEditorPanel,
+    // or the route assigned to the selected aircraft, or create a new one.
+    QString routeId;
+
+    // Try selected aircraft's route first
+    QString acId = m_appState->selectionManager()->selectedEntityId();
+    if (!acId.isEmpty())
+    {
+        AircraftState *ac = m_appState->aircraftManager()->aircraft(acId);
+        if (ac && !ac->currentRouteId.isEmpty())
+            routeId = ac->currentRouteId;
+    }
+
+    // If no route found, try first available route
+    if (routeId.isEmpty())
+    {
+        auto ids = m_appState->routeManager()->routeIds();
+        if (!ids.isEmpty())
+            routeId = ids.first();
+    }
+
+    // If still no route, create one
+    if (routeId.isEmpty())
+    {
+        RouteState route;
+        route.id = QStringLiteral("route_%1").arg(m_appState->routeManager()->routeIds().size() + 1);
+        route.loopMode = false;
+        m_appState->routeManager()->createRoute(route);
+        routeId = route.id;
+
+        // Assign to selected aircraft if any
+        if (!acId.isEmpty())
+        {
+            AircraftState *ac = m_appState->aircraftManager()->aircraft(acId);
+            if (ac)
+                ac->currentRouteId = routeId;
+        }
+
+        m_logPanel->appendLog(QStringLiteral("Created new route: %1").arg(routeId));
+    }
+
+    // Use reasonable altitude (at least 300m if ground click is near zero)
+    double wpAlt = (alt < 100.0) ? 5000.0 : alt;
+
+    Waypoint wp;
+    wp.lat = lat;
+    wp.lon = lon;
+    wp.alt = wpAlt;
+    wp.name = QStringLiteral("WP%1").arg(
+        m_appState->routeManager()->route(routeId)->waypoints.size() + 1);
+
+    m_appState->routeManager()->addWaypoint(routeId, wp);
+    m_bridge->pushFullSync();
+
+    m_logPanel->appendLog(QStringLiteral("Added waypoint %1 to %2: (%3, %4) @ %5m")
+                              .arg(wp.name, routeId)
+                              .arg(lat, 0, 'f', 4)
+                              .arg(lon, 0, 'f', 4)
+                              .arg(wpAlt, 0, 'f', 0));
 }
 
 void MainWindow::createDemonstrationScenario()

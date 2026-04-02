@@ -41,6 +41,9 @@ struct AircraftState
     double heading = 0.0;       // degrees
     double speed = 0.0;         // m/s
     double verticalSpeed = 0.0; // m/s
+    double roll = 0.0;          // degrees (bank angle, +right)
+    double pitch = 0.0;         // degrees (nose up positive)
+    double yaw = 0.0;           // degrees (same as heading for now)
     ControlMode controlMode = ControlMode::IDLE;
     QString currentRouteId;
     QString modelUri = QStringLiteral("/models/f16-c_falcon.glb");
@@ -80,6 +83,9 @@ struct AircraftState
         o[QStringLiteral("heading")] = heading;
         o[QStringLiteral("speed")] = speed;
         o[QStringLiteral("verticalSpeed")] = verticalSpeed;
+        o[QStringLiteral("roll")] = roll;
+        o[QStringLiteral("pitch")] = pitch;
+        o[QStringLiteral("yaw")] = yaw;
         o[QStringLiteral("controlMode")] = controlModeToString(controlMode);
         o[QStringLiteral("currentRouteId")] = currentRouteId;
         o[QStringLiteral("modelUri")] = modelUri;
@@ -95,6 +101,9 @@ struct AircraftState
         o[QStringLiteral("alt")] = alt;
         o[QStringLiteral("heading")] = heading;
         o[QStringLiteral("speed")] = speed;
+        o[QStringLiteral("roll")] = roll;
+        o[QStringLiteral("pitch")] = pitch;
+        o[QStringLiteral("yaw")] = yaw;
         return o;
     }
 };
