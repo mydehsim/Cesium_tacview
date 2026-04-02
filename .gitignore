@@ -31,6 +31,7 @@ Thumbs.db
 
 # Secrets
 .env
+.vscode/mcp.json
 scripts/create-issues.ps1
 *.dll
 *.obj
