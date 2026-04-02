@@ -2,40 +2,40 @@
 #include "app/AppState.h"
 
 AircraftInspector::AircraftInspector(AppState *appState, QWidget *parent)
-    : QDockWidget(tr("Aircraft Inspector"), parent)
-    , m_appState(appState)
+    : QDockWidget(tr("Aircraft Inspector"), parent), m_appState(appState)
 {
     setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
 
     auto *container = new QWidget;
     auto *layout = new QFormLayout(container);
 
-    m_idLabel       = new QLabel(QStringLiteral("-"));
+    m_idLabel = new QLabel(QStringLiteral("-"));
     m_callSignLabel = new QLabel(QStringLiteral("-"));
-    m_typeLabel     = new QLabel(QStringLiteral("-"));
-    m_latLabel      = new QLabel(QStringLiteral("-"));
-    m_lonLabel      = new QLabel(QStringLiteral("-"));
-    m_altLabel      = new QLabel(QStringLiteral("-"));
-    m_headingLabel  = new QLabel(QStringLiteral("-"));
-    m_speedLabel    = new QLabel(QStringLiteral("-"));
-    m_modeLabel     = new QLabel(QStringLiteral("-"));
-    m_routeLabel    = new QLabel(QStringLiteral("-"));
+    m_typeLabel = new QLabel(QStringLiteral("-"));
+    m_latLabel = new QLabel(QStringLiteral("-"));
+    m_lonLabel = new QLabel(QStringLiteral("-"));
+    m_altLabel = new QLabel(QStringLiteral("-"));
+    m_headingLabel = new QLabel(QStringLiteral("-"));
+    m_speedLabel = new QLabel(QStringLiteral("-"));
+    m_modeLabel = new QLabel(QStringLiteral("-"));
+    m_routeLabel = new QLabel(QStringLiteral("-"));
 
-    layout->addRow(tr("ID:"),       m_idLabel);
+    layout->addRow(tr("ID:"), m_idLabel);
     layout->addRow(tr("CallSign:"), m_callSignLabel);
-    layout->addRow(tr("Type:"),     m_typeLabel);
-    layout->addRow(tr("Lat:"),      m_latLabel);
-    layout->addRow(tr("Lon:"),      m_lonLabel);
-    layout->addRow(tr("Alt:"),      m_altLabel);
-    layout->addRow(tr("Heading:"),  m_headingLabel);
-    layout->addRow(tr("Speed:"),    m_speedLabel);
-    layout->addRow(tr("Mode:"),     m_modeLabel);
-    layout->addRow(tr("Route:"),    m_routeLabel);
+    layout->addRow(tr("Type:"), m_typeLabel);
+    layout->addRow(tr("Lat:"), m_latLabel);
+    layout->addRow(tr("Lon:"), m_lonLabel);
+    layout->addRow(tr("Alt:"), m_altLabel);
+    layout->addRow(tr("Heading:"), m_headingLabel);
+    layout->addRow(tr("Speed:"), m_speedLabel);
+    layout->addRow(tr("Mode:"), m_modeLabel);
+    layout->addRow(tr("Route:"), m_routeLabel);
 
     setWidget(container);
 
     connect(appState->selectionManager(), &SelectionManager::selectionChanged,
-            this, [this](const QString&, SelectionType) { refresh(); });
+            this, [this](const QString &, SelectionType)
+            { refresh(); });
 }
 
 void AircraftInspector::refresh()
@@ -43,7 +43,8 @@ void AircraftInspector::refresh()
     const QString sel = m_appState->selectionManager()->selectedEntityId();
     const AircraftState *ac = m_appState->aircraftManager()->aircraft(sel);
 
-    if (!ac) {
+    if (!ac)
+    {
         m_idLabel->setText(QStringLiteral("-"));
         m_callSignLabel->setText(QStringLiteral("-"));
         m_typeLabel->setText(QStringLiteral("-"));

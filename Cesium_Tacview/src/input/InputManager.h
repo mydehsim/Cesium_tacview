@@ -30,10 +30,10 @@ private:
     void handleAction(int key);
     void selectNextAircraft();
 
-    AppState        *m_appState;
+    AppState *m_appState;
     SimulationEngine *m_engine;
-    CesiumBridge    *m_bridge;
-    QSet<int>        m_pressedKeys;
+    CesiumBridge *m_bridge;
+    QSet<int> m_pressedKeys;
 };
 
 #endif // INPUTMANAGER_H

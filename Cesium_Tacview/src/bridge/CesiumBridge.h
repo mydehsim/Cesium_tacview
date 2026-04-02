@@ -43,10 +43,10 @@ private:
     void handleEvent(const QJsonObject &event);
     void sendJson(const QJsonObject &obj);
 
-    AppState    *m_appState;
+    AppState *m_appState;
     QWebChannel *m_channel;
-    bool         m_cesiumReady = false;
-    quint64      m_tickCounter = 0;
+    bool m_cesiumReady = false;
+    quint64 m_tickCounter = 0;
 };
 
 #endif // CESIUMBRIDGE_H

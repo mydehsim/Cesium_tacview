@@ -14,14 +14,14 @@ class DebugWindow : public QMainWindow
 public:
     explicit DebugWindow(AppState *appState, QWidget *parent = nullptr);
 
-    SimulationLogPanel  *logPanel()  { return m_logPanel; }
-    CommandHistoryPanel *cmdPanel()  { return m_cmdPanel; }
-    AircraftInspector   *inspector() { return m_inspector; }
+    SimulationLogPanel *logPanel() { return m_logPanel; }
+    CommandHistoryPanel *cmdPanel() { return m_cmdPanel; }
+    AircraftInspector *inspector() { return m_inspector; }
 
 private:
-    AppState            *m_appState;
-    AircraftInspector   *m_inspector;
-    SimulationLogPanel  *m_logPanel;
+    AppState *m_appState;
+    AircraftInspector *m_inspector;
+    SimulationLogPanel *m_logPanel;
     CommandHistoryPanel *m_cmdPanel;
 };
 

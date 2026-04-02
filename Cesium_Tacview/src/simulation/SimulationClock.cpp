@@ -13,8 +13,10 @@ void SimulationClock::advance()
 
 void SimulationClock::setTickRate(int hz)
 {
-    if (hz < 1) hz = 1;
-    if (hz > 120) hz = 120;
+    if (hz < 1)
+        hz = 1;
+    if (hz > 120)
+        hz = 120;
     m_tickRate = hz;
     recalcDt();
     emit tickRateChanged(hz);
@@ -22,15 +24,18 @@ void SimulationClock::setTickRate(int hz)
 
 void SimulationClock::setTimeScale(double scale)
 {
-    if (scale < 0.0) scale = 0.0;
-    if (scale > 100.0) scale = 100.0;
+    if (scale < 0.0)
+        scale = 0.0;
+    if (scale > 100.0)
+        scale = 100.0;
     m_timeScale = scale;
     recalcDt();
 }
 
 void SimulationClock::setPaused(bool paused)
 {
-    if (m_paused == paused) return;
+    if (m_paused == paused)
+        return;
     m_paused = paused;
     emit pausedChanged(paused);
 }

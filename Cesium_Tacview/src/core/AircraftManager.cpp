@@ -66,8 +66,10 @@ const QMap<QString, AircraftState> &AircraftManager::allAircraft() const
 
 void AircraftManager::applyPositions(const QMap<QString, AircraftState> &updated)
 {
-    for (auto it = updated.cbegin(); it != updated.cend(); ++it) {
-        if (m_aircraft.contains(it.key())) {
+    for (auto it = updated.cbegin(); it != updated.cend(); ++it)
+    {
+        if (m_aircraft.contains(it.key()))
+        {
             auto &ac = m_aircraft[it.key()];
             ac.lat = it.value().lat;
             ac.lon = it.value().lon;

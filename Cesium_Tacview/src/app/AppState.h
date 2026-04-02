@@ -12,20 +12,20 @@ class AppState : public QObject
 public:
     explicit AppState(QObject *parent = nullptr);
 
-    AircraftManager  *aircraftManager()  { return m_aircraftMgr; }
-    RouteManager     *routeManager()     { return m_routeMgr; }
+    AircraftManager *aircraftManager() { return m_aircraftMgr; }
+    RouteManager *routeManager() { return m_routeMgr; }
     SelectionManager *selectionManager() { return m_selectionMgr; }
 
-    const AircraftManager  *aircraftManager()  const { return m_aircraftMgr; }
-    const RouteManager     *routeManager()     const { return m_routeMgr; }
+    const AircraftManager *aircraftManager() const { return m_aircraftMgr; }
+    const RouteManager *routeManager() const { return m_routeMgr; }
     const SelectionManager *selectionManager() const { return m_selectionMgr; }
 
 signals:
     void fullSyncRequired();
 
 private:
-    AircraftManager  *m_aircraftMgr;
-    RouteManager     *m_routeMgr;
+    AircraftManager *m_aircraftMgr;
+    RouteManager *m_routeMgr;
     SelectionManager *m_selectionMgr;
 };
 

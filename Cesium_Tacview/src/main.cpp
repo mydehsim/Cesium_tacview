@@ -40,7 +40,8 @@ int main(int argc, char *argv[])
     app.setOrganizationName(QStringLiteral("CesiumTacview"));
 
     MainWindow window;
-    window.show();
+    // window.show() is called inside setupDualScreen()
+    // MapWindow is shown on second monitor (or side-by-side on single)
 
     return app.exec();
 }

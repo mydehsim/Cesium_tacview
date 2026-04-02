@@ -68,7 +68,10 @@
     "compounds": [
         {
             "name": "Full Debug (Qt + JS)",
-            "configurations": ["Debug Qt App", "Debug JS (Cesium)"],
+            "configurations": [
+                "Debug Qt App",
+                "Debug JS (Cesium)"
+            ],
             "stopAll": true
         }
     ]

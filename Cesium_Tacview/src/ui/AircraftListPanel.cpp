@@ -4,9 +4,7 @@
 
 AircraftListPanel::AircraftListPanel(AppState *appState, CesiumBridge *bridge,
                                      QWidget *parent)
-    : QDockWidget(tr("Aircraft List"), parent)
-    , m_appState(appState)
-    , m_bridge(bridge)
+    : QDockWidget(tr("Aircraft List"), parent), m_appState(appState), m_bridge(bridge)
 {
     setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
 
@@ -35,9 +33,8 @@ AircraftListPanel::AircraftListPanel(AppState *appState, CesiumBridge *bridge,
     connect(m_deleteBtn, &QPushButton::clicked, this, &AircraftListPanel::onDeleteClicked);
 
     connect(appState->aircraftManager(), &AircraftManager::stateChanged, this, &AircraftListPanel::refresh);
-    connect(appState->selectionManager(), &SelectionManager::selectionChanged, this, [this](const QString&, SelectionType) {
-        refresh();
-    });
+    connect(appState->selectionManager(), &SelectionManager::selectionChanged, this, [this](const QString &, SelectionType)
+            { refresh(); });
 }
 
 void AircraftListPanel::refresh()
@@ -46,7 +43,8 @@ void AircraftListPanel::refresh()
     const auto &all = m_appState->aircraftManager()->allAircraft();
     const QString selected = m_appState->selectionManager()->selectedEntityId();
 
-    for (auto it = all.cbegin(); it != all.cend(); ++it) {
+    for (auto it = all.cbegin(); it != all.cend(); ++it)
+    {
         const auto &ac = it.value();
         auto *item = new QTreeWidgetItem(m_tree);
         item->setText(0, ac.id);
@@ -56,7 +54,8 @@ void AircraftListPanel::refresh()
         item->setText(4, QString::number(ac.alt, 'f', 0));
         item->setData(0, Qt::UserRole, ac.id);
 
-        if (ac.id == selected) {
+        if (ac.id == selected)
+        {
             item->setSelected(true);
             m_tree->setCurrentItem(item);
         }
@@ -80,7 +79,8 @@ void AircraftListPanel::onCreateClicked()
 void AircraftListPanel::onDeleteClicked()
 {
     const QString sel = m_appState->selectionManager()->selectedEntityId();
-    if (!sel.isEmpty()) {
+    if (!sel.isEmpty())
+    {
         emit deleteAircraftRequested(sel);
     }
 }

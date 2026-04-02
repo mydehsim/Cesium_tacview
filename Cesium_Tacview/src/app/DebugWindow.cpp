@@ -7,8 +7,7 @@
 #include <QLabel>
 
 DebugWindow::DebugWindow(AppState *appState, QWidget *parent)
-    : QMainWindow(parent)
-    , m_appState(appState)
+    : QMainWindow(parent), m_appState(appState)
 {
     setWindowTitle(QStringLiteral("Cesium Tacview — Debug Console"));
     resize(800, 600);

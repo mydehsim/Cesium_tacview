@@ -6,7 +6,8 @@
             "type": "shell",
             "command": "cmake",
             "args": [
-                "--preset", "dev-debug"
+                "--preset",
+                "dev-debug"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/Cesium_Tacview"
@@ -20,7 +21,8 @@
             "command": "cmake",
             "args": [
                 "--build",
-                "--preset", "build-debug",
+                "--preset",
+                "build-debug",
                 "--parallel"
             ],
             "options": {
@@ -39,7 +41,8 @@
             "command": "cmake",
             "args": [
                 "--build",
-                "--preset", "build-release",
+                "--preset",
+                "build-release",
                 "--parallel"
             ],
             "options": {
@@ -53,8 +56,11 @@
             "type": "shell",
             "command": "cmake",
             "args": [
-                "--build", "--preset", "build-debug",
-                "--target", "clean"
+                "--build",
+                "--preset",
+                "build-debug",
+                "--target",
+                "clean"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/Cesium_Tacview"
@@ -66,7 +72,10 @@
             "label": "vite-start",
             "type": "shell",
             "command": "npm",
-            "args": ["run", "dev"],
+            "args": [
+                "run",
+                "dev"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}/cesium_web"
             },
@@ -91,10 +100,18 @@
             "label": "vite-stop",
             "type": "shell",
             "command": "taskkill",
-            "args": ["/F", "/IM", "node.exe"],
+            "args": [
+                "/F",
+                "/IM",
+                "node.exe"
+            ],
             "windows": {
                 "command": "taskkill",
-                "args": ["/F", "/IM", "node.exe"]
+                "args": [
+                    "/F",
+                    "/IM",
+                    "node.exe"
+                ]
             },
             "problemMatcher": [],
             "presentation": {
@@ -121,7 +138,10 @@
         },
         {
             "label": "full-dev",
-            "dependsOn": ["vite-start", "run-app"],
+            "dependsOn": [
+                "vite-start",
+                "run-app"
+            ],
             "dependsOrder": "sequence",
             "problemMatcher": [],
             "group": "build"

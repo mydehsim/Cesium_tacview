@@ -3,14 +3,11 @@
     "cmake.buildDirectory": "${workspaceFolder}/build-qt",
     "cmake.configureOnOpen": true,
     "cmake.useCMakePresets": "always",
-
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
-
     "files.associations": {
         "*.h": "cpp",
         "*.qrc": "xml"
     },
-
     "editor.formatOnSave": true,
     "[cpp]": {
         "editor.defaultFormatter": "ms-vscode.cpptools"
@@ -18,14 +15,12 @@
     "[javascript]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
-
     "files.exclude": {
         "**/build-qt/CMakeFiles": true,
         "**/build-qt/Cesium_Tacview_autogen": true,
         "**/build-Cesium_Tacview-*": true,
         "**/build/CMakeFiles": true
     },
-
     "search.exclude": {
         "**/build-qt": true,
         "**/build-Cesium_Tacview-*": true,

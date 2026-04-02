@@ -13,9 +13,7 @@
 #include <QDebug>
 
 CesiumBridge::CesiumBridge(AppState *appState, QObject *parent)
-    : QObject(parent)
-    , m_appState(appState)
-    , m_channel(new QWebChannel(this))
+    : QObject(parent), m_appState(appState), m_channel(new QWebChannel(this))
 {
     // Register this object so JS can call slots and receive signals
     m_channel->registerObject(QStringLiteral("qtBridge"), this);
@@ -29,7 +27,8 @@ void CesiumBridge::attachToPage(QWebEnginePage *page)
     // This is necessary because qrc:// URIs don't resolve when
     // the page is loaded from http:// (Vite dev server).
     QFile f(QStringLiteral(":/qtwebchannel/qwebchannel.js"));
-    if (f.open(QIODevice::ReadOnly)) {
+    if (f.open(QIODevice::ReadOnly))
+    {
         QWebEngineScript script;
         script.setName(QStringLiteral("qwebchannel"));
         script.setSourceCode(QString::fromUtf8(f.readAll()));
@@ -38,14 +37,17 @@ void CesiumBridge::attachToPage(QWebEnginePage *page)
         script.setRunsOnSubFrames(false);
         page->scripts().insert(script);
         qDebug() << "[CesiumBridge] qwebchannel.js injected via QWebEngineScript";
-    } else {
+    }
+    else
+    {
         qWarning() << "[CesiumBridge] Failed to load qrc:///qtwebchannel/qwebchannel.js";
     }
 }
 
 void CesiumBridge::pushFullSync()
 {
-    if (!m_cesiumReady) return;
+    if (!m_cesiumReady)
+        return;
 
     QJsonObject msg = StateSerializer::serializeFullState(m_appState, m_tickCounter);
     sendJson(msg);
@@ -54,7 +56,8 @@ void CesiumBridge::pushFullSync()
 
 void CesiumBridge::pushDelta()
 {
-    if (!m_cesiumReady) return;
+    if (!m_cesiumReady)
+        return;
 
     ++m_tickCounter;
     QJsonObject msg = StateSerializer::serializeDelta(m_appState, m_tickCounter);
@@ -63,7 +66,8 @@ void CesiumBridge::pushDelta()
 
 void CesiumBridge::pushCommand(const QJsonObject &cmd)
 {
-    if (!m_cesiumReady) return;
+    if (!m_cesiumReady)
+        return;
     sendJson(cmd);
     emit logMessage(QStringLiteral("[Bridge] Command: %1").arg(cmd.value(QStringLiteral("type")).toString()));
 }
@@ -72,7 +76,8 @@ void CesiumBridge::onCesiumEvent(const QString &jsonStr)
 {
     QJsonParseError err;
     QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8(), &err);
-    if (err.error != QJsonParseError::NoError) {
+    if (err.error != QJsonParseError::NoError)
+    {
         qWarning() << "[Bridge] Invalid JSON from Cesium:" << err.errorString();
         return;
     }
@@ -97,24 +102,28 @@ void CesiumBridge::handleEvent(const QJsonObject &event)
     const QString type = event.value(QStringLiteral("type")).toString();
     const QJsonObject payload = event.value(QStringLiteral("payload")).toObject();
 
-    if (type == QLatin1String("EVT_ENTITY_CLICKED")) {
+    if (type == QLatin1String("EVT_ENTITY_CLICKED"))
+    {
         const QString entityId = payload.value(QStringLiteral("entityId")).toString();
         const QString entityType = payload.value(QStringLiteral("entityType")).toString();
         emit entityClicked(entityId, entityType);
 
         // Auto-select in state
-        if (entityType == QLatin1String("aircraft")) {
+        if (entityType == QLatin1String("aircraft"))
+        {
             m_appState->selectionManager()->selectEntity(entityId, SelectionType::AIRCRAFT);
             pushFullSync();
         }
     }
-    else if (type == QLatin1String("EVT_MAP_CLICKED")) {
+    else if (type == QLatin1String("EVT_MAP_CLICKED"))
+    {
         const double lat = payload.value(QStringLiteral("lat")).toDouble();
         const double lon = payload.value(QStringLiteral("lon")).toDouble();
         const double alt = payload.value(QStringLiteral("alt")).toDouble();
         emit mapClicked(lat, lon, alt);
     }
-    else if (type == QLatin1String("EVT_WAYPOINT_MOVED")) {
+    else if (type == QLatin1String("EVT_WAYPOINT_MOVED"))
+    {
         const QString routeId = payload.value(QStringLiteral("routeId")).toString();
         const int wpIdx = payload.value(QStringLiteral("waypointIndex")).toInt();
         const QJsonObject pos = payload.value(QStringLiteral("newPosition")).toObject();
@@ -127,13 +136,15 @@ void CesiumBridge::handleEvent(const QJsonObject &event)
         emit waypointMoved(routeId, wpIdx, lat, lon, alt);
         pushFullSync();
     }
-    else if (type == QLatin1String("EVT_WAYPOINT_ADDED")) {
+    else if (type == QLatin1String("EVT_WAYPOINT_ADDED"))
+    {
         const double lat = payload.value(QStringLiteral("lat")).toDouble();
         const double lon = payload.value(QStringLiteral("lon")).toDouble();
         const double alt = payload.value(QStringLiteral("alt")).toDouble();
         emit waypointAdded(lat, lon, alt);
     }
-    else if (type == QLatin1String("REQ_FULL_SYNC")) {
+    else if (type == QLatin1String("REQ_FULL_SYNC"))
+    {
         pushFullSync();
     }
 }

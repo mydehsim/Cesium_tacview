@@ -26,13 +26,13 @@ private slots:
     void onRouteSelected(int index);
 
 private:
-    AppState     *m_appState;
+    AppState *m_appState;
     CesiumBridge *m_bridge;
-    QComboBox    *m_routeCombo;
-    QListWidget  *m_waypointList;
-    QPushButton  *m_addBtn;
-    QPushButton  *m_removeBtn;
-    QPushButton  *m_applyBtn;
+    QComboBox *m_routeCombo;
+    QListWidget *m_waypointList;
+    QPushButton *m_addBtn;
+    QPushButton *m_removeBtn;
+    QPushButton *m_applyBtn;
 };
 
 #endif // ROUTEEDITORPANEL_H

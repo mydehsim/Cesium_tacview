@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "MapWindow.h"
 #include "AppState.h"
 #include "bridge/CesiumBridge.h"
 #include "bridge/StateSerializer.h"
@@ -10,145 +11,104 @@
 #include "ui/SimulationLogPanel.h"
 #include "ui/CommandHistoryPanel.h"
 
-#include <QWebEngineView>
-#include <QWebEnginePage>
-#include <QWebEngineProfile>
-#include <QWebEngineSettings>
 #include <QKeyEvent>
 #include <QStatusBar>
 #include <QMenuBar>
 #include <QToolBar>
 #include <QInputDialog>
 #include <QMessageBox>
-#include <QUrl>
-#include <QTimer>
-#include <QStandardPaths>
+#include <QSplitter>
+#include <QTabWidget>
+#include <QApplication>
+#include <QScreen>
+#include <QLabel>
 #include <QDebug>
-
-// Custom page that captures JS console messages into the simulation log
-class CesiumPage : public QWebEnginePage
-{
-public:
-    using QWebEnginePage::QWebEnginePage;
-    SimulationLogPanel *logPanel = nullptr;
-
-protected:
-    void javaScriptConsoleMessage(JavaScriptConsoleMessageLevel level,
-                                 const QString &message, int lineNumber,
-                                 const QString &sourceID) override
-    {
-        Q_UNUSED(level)
-        QString logMsg = QStringLiteral("[JS:%1:%2] %3")
-            .arg(sourceID.section(QLatin1Char('/'), -1))
-            .arg(lineNumber)
-            .arg(message);
-        qDebug().noquote() << logMsg;
-        if (logPanel)
-            logPanel->appendLog(logMsg);
-    }
-};
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     // Core systems
     m_appState = new AppState(this);
-    m_bridge   = new CesiumBridge(m_appState, this);
+    m_bridge = new CesiumBridge(m_appState, this);
     m_simEngine = new SimulationEngine(m_appState, this);
     m_inputManager = new InputManager(m_appState, m_simEngine, m_bridge, this);
 
+    // Map window (separate, goes to second screen)
+    m_mapWindow = new MapWindow(m_appState, m_bridge, nullptr);
+
     setupUi();
     setupConnections();
+    setupDualScreen();
 
-    setWindowTitle(QStringLiteral("Cesium Tacview — Flight Simulation"));
-    resize(1600, 900);
+    setWindowTitle(QStringLiteral("Cesium Tacview — Command & Control"));
+    resize(1200, 900);
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow()
+{
+    // MapWindow is not a child (nullptr parent), delete explicitly
+    delete m_mapWindow;
+}
 
 void MainWindow::setupUi()
 {
-    // --- Central Widget: CesiumJS via QWebEngineView ---
-    m_webView = new QWebEngineView;
-    setCentralWidget(m_webView);
+    // ============================================================
+    // Central Widget: Splitter with panels (NO QWebEngineView here)
+    // ============================================================
+    auto *centralSplitter = new QSplitter(Qt::Horizontal);
 
-    // IMPORTANT: Configure WebGL/GPU settings BEFORE loading any URL
-    auto *settings = m_webView->settings();
-    settings->setAttribute(QWebEngineSettings::WebGLEnabled, true);
-    settings->setAttribute(QWebEngineSettings::Accelerated2dCanvasEnabled, true);
-    settings->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, true);
-    settings->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls, true);
-    settings->setAttribute(QWebEngineSettings::ErrorPageEnabled, false);
+    // Left column: Aircraft list + Route editor (stacked)
+    auto *leftSplitter = new QSplitter(Qt::Vertical);
 
-    // Enable profile-level WebGL + disk cache for Cesium tiles
-    auto *profile = QWebEngineProfile::defaultProfile();
-    profile->settings()->setAttribute(QWebEngineSettings::WebGLEnabled, true);
-    profile->setHttpCacheType(QWebEngineProfile::DiskHttpCache);
-    profile->setHttpCacheMaximumSize(1024 * 1024 * 1024); // 1 GB tile cache
+    m_aircraftPanel = new AircraftListPanel(m_appState, m_bridge, this);
+    m_inspectorPanel = new AircraftInspector(m_appState, this);
+    m_routePanel = new RouteEditorPanel(m_appState, m_bridge, this);
 
-    // Persistent storage for Cesium ion tokens etc.
-    profile->setPersistentStoragePath(
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/webengine"));
+    leftSplitter->addWidget(m_aircraftPanel);
+    leftSplitter->addWidget(m_inspectorPanel);
+    leftSplitter->addWidget(m_routePanel);
+    leftSplitter->setStretchFactor(0, 3);
+    leftSplitter->setStretchFactor(1, 2);
+    leftSplitter->setStretchFactor(2, 2);
 
-    // Use custom page that captures JS console output
-    auto *page = new CesiumPage(profile, m_webView);
-    m_webView->setPage(page);
+    // Right column: Log + command history (tabbed)
+    auto *rightSplitter = new QSplitter(Qt::Vertical);
 
-    // --- Dock Panels (create BEFORE page->logPanel assignment) ---
+    auto *logTabs = new QTabWidget;
     m_logPanel = new SimulationLogPanel(this);
-    addDockWidget(Qt::BottomDockWidgetArea, m_logPanel);
-
     m_cmdHistoryPanel = new CommandHistoryPanel(this);
-    addDockWidget(Qt::BottomDockWidgetArea, m_cmdHistoryPanel);
-    tabifyDockWidget(m_logPanel, m_cmdHistoryPanel);
-    m_logPanel->raise();
+    logTabs->addTab(m_logPanel, QStringLiteral("Simulation Log"));
+    logTabs->addTab(m_cmdHistoryPanel, QStringLiteral("Command History"));
 
-    // Now wire the log panel to the page
-    page->logPanel = m_logPanel;
+    // Placeholder for future panels (scenario, network log)
+    auto *statusLabel = new QLabel(QStringLiteral(
+        "<h2>Cesium Tacview</h2>"
+        "<p>Command & Control Console</p>"
+        "<hr>"
+        "<p><b>Keyboard:</b></p>"
+        "<p>W/A/S/D — Manual aircraft control</p>"
+        "<p>Q/E — Climb / Descend</p>"
+        "<p>Space — Toggle MANUAL/AUTOPILOT</p>"
+        "<p>Tab — Next aircraft</p>"
+        "<p>F — Camera follow</p>"
+        "<p>P — Pause/Resume</p>"
+        "<p>Ctrl+N — New aircraft</p>"
+        "<p>Delete — Remove selected</p>"));
+    statusLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    statusLabel->setMargin(12);
+    statusLabel->setWordWrap(true);
 
-    // Attach QWebChannel to the web page
-    m_bridge->attachToPage(m_webView->page());
+    rightSplitter->addWidget(statusLabel);
+    rightSplitter->addWidget(logTabs);
+    rightSplitter->setStretchFactor(0, 1);
+    rightSplitter->setStretchFactor(1, 2);
 
-    // Load existing Cesium web app from Vite dev server
-    m_webView->setUrl(QUrl(QStringLiteral("http://localhost:5173")));
+    centralSplitter->addWidget(leftSplitter);
+    centralSplitter->addWidget(rightSplitter);
+    centralSplitter->setStretchFactor(0, 1);
+    centralSplitter->setStretchFactor(1, 1);
 
-    // Inject CesiumJS performance tuning after page finishes loading
-    connect(m_webView, &QWebEngineView::loadFinished, this, [this](bool ok) {
-        if (!ok) return;
-        // Wait for Cesium viewer to initialize, then tune performance
-        QTimer::singleShot(3000, this, [this]() {
-            const QString perfScript = QStringLiteral(R"JS(
-                (function() {
-                    if (typeof viewer === 'undefined') {
-                        console.log('[Qt] viewer not found, skipping perf tuning');
-                        return;
-                    }
-                    // Terrain: higher error tolerance = less tile requests = faster
-                    viewer.scene.globe.maximumScreenSpaceError = 4;  // default=2
-
-                    // Disable expensive post-processing effects
-                    viewer.scene.fxaa = false;
-                    viewer.scene.fog.enabled = false;
-                    viewer.scene.globe.showGroundAtmosphere = false;
-                    viewer.scene.skyAtmosphere.show = false;
-
-                    // Reduce shadow/lighting overhead
-                    viewer.shadows = false;
-                    viewer.scene.globe.enableLighting = false;
-
-                    // Render on demand (not continuous) when idle
-                    viewer.scene.requestRenderMode = true;
-                    viewer.scene.maximumRenderTimeChange = 0.0;
-
-                    // Tileset performance
-                    viewer.scene.globe.tileCacheSize = 1000;
-
-                    console.log('[Qt] CesiumJS performance tuning applied');
-                })();
-            )JS");
-            m_webView->page()->runJavaScript(perfScript);
-        });
-    });
+    setCentralWidget(centralSplitter);
 
     // --- Menu Bar ---
     auto *fileMenu = menuBar()->addMenu(tr("&File"));
@@ -162,6 +122,10 @@ void MainWindow::setupUi()
     auto *acMenu = menuBar()->addMenu(tr("&Aircraft"));
     acMenu->addAction(tr("&Create Aircraft"), this, &MainWindow::onCreateAircraft, QKeySequence(QStringLiteral("Ctrl+N")));
 
+    auto *viewMenu = menuBar()->addMenu(tr("&View"));
+    viewMenu->addAction(tr("Show &Map Window"), m_mapWindow, &QWidget::show);
+    viewMenu->addAction(tr("Map &Fullscreen"), m_mapWindow, &QWidget::showFullScreen);
+
     // --- Toolbar ---
     auto *toolbar = addToolBar(tr("Simulation"));
     toolbar->addAction(tr("▶ Start"), m_simEngine, &SimulationEngine::start);
@@ -170,18 +134,8 @@ void MainWindow::setupUi()
     toolbar->addSeparator();
     toolbar->addAction(tr("+ Aircraft"), this, &MainWindow::onCreateAircraft);
 
-    // --- Dock Panels ---
-    m_aircraftPanel = new AircraftListPanel(m_appState, m_bridge, this);
-    addDockWidget(Qt::LeftDockWidgetArea, m_aircraftPanel);
-
-    m_inspectorPanel = new AircraftInspector(m_appState, this);
-    addDockWidget(Qt::LeftDockWidgetArea, m_inspectorPanel);
-
-    m_routePanel = new RouteEditorPanel(m_appState, m_bridge, this);
-    addDockWidget(Qt::LeftDockWidgetArea, m_routePanel);
-
     // --- Status Bar ---
-    statusBar()->showMessage(tr("Ready — Waiting for Cesium…"));
+    statusBar()->showMessage(tr("Ready — Waiting for Cesium map..."));
 }
 
 void MainWindow::setupConnections()
@@ -205,12 +159,46 @@ void MainWindow::setupConnections()
     // Aircraft panel actions
     connect(m_aircraftPanel, &AircraftListPanel::createAircraftRequested, this, &MainWindow::onCreateAircraft);
     connect(m_aircraftPanel, &AircraftListPanel::deleteAircraftRequested, this, &MainWindow::onDeleteAircraft);
+
+    // MapWindow log forwarding
+    connect(m_mapWindow, &MapWindow::logMessage, m_logPanel, &SimulationLogPanel::appendLog);
+}
+
+void MainWindow::setupDualScreen()
+{
+    const QList<QScreen *> screens = QApplication::screens();
+
+    if (screens.size() >= 2) {
+        // Two monitors: MainWindow on screen 0, MapWindow on screen 1
+        const QRect screen0 = screens.at(0)->availableGeometry();
+        setGeometry(screen0);
+        showMaximized();
+
+        m_mapWindow->moveToScreen(1);
+
+        m_logPanel->appendLog(QStringLiteral("Dual-screen: Control on %1, Map on %2")
+                                  .arg(screens.at(0)->name(), screens.at(1)->name()));
+    } else {
+        // Single monitor: side by side (60/40 split)
+        const QRect avail = screens.at(0)->availableGeometry();
+        const int splitX = avail.width() * 2 / 5;
+
+        setGeometry(avail.x(), avail.y(), splitX, avail.height());
+        show();
+
+        m_mapWindow->setGeometry(avail.x() + splitX, avail.y(),
+                                 avail.width() - splitX, avail.height());
+        m_mapWindow->show();
+
+        m_logPanel->appendLog(QStringLiteral("Single-screen: Side-by-side layout"));
+    }
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
     // Don't intercept if web view has focus for text input etc.
-    if (!event->isAutoRepeat()) {
+    if (!event->isAutoRepeat())
+    {
         m_inputManager->keyPressed(event->key());
     }
     QMainWindow::keyPressEvent(event);
@@ -218,7 +206,8 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
 void MainWindow::keyReleaseEvent(QKeyEvent *event)
 {
-    if (!event->isAutoRepeat()) {
+    if (!event->isAutoRepeat())
+    {
         m_inputManager->keyReleased(event->key());
     }
     QMainWindow::keyReleaseEvent(event);
@@ -238,12 +227,13 @@ void MainWindow::onTickCompleted(quint64 tick)
     m_bridge->pushDelta();
 
     // Update inspector every 5 ticks (~4 times/sec)
-    if (tick % 5 == 0) {
+    if (tick % 5 == 0)
+    {
         m_inspectorPanel->refresh();
         statusBar()->showMessage(QStringLiteral("Tick: %1 | Aircraft: %2 | Selected: %3")
-            .arg(tick)
-            .arg(m_appState->aircraftManager()->count())
-            .arg(m_appState->selectionManager()->selectedEntityId()));
+                                     .arg(tick)
+                                     .arg(m_appState->aircraftManager()->count())
+                                     .arg(m_appState->selectionManager()->selectedEntityId()));
     }
 }
 
@@ -254,7 +244,8 @@ void MainWindow::onCreateAircraft()
                                              tr("Call Sign:"), QLineEdit::Normal,
                                              QStringLiteral("ALPHA-%1").arg(m_nextAircraftId, 2, 10, QLatin1Char('0')),
                                              &ok);
-    if (!ok || callSign.isEmpty()) return;
+    if (!ok || callSign.isEmpty())
+        return;
 
     AircraftState ac;
     ac.id = QStringLiteral("ac_%1").arg(m_nextAircraftId++);
@@ -279,7 +270,8 @@ void MainWindow::onDeleteAircraft(const QString &id)
 {
     auto ret = QMessageBox::question(this, tr("Delete Aircraft"),
                                      tr("Delete aircraft %1?").arg(id));
-    if (ret != QMessageBox::Yes) return;
+    if (ret != QMessageBox::Yes)
+        return;
 
     m_appState->aircraftManager()->removeAircraft(id);
     if (m_appState->selectionManager()->selectedEntityId() == id)
@@ -295,9 +287,13 @@ void MainWindow::createDemonstrationScenario()
     ac1.id = QStringLiteral("ac_1");
     ac1.callSign = QStringLiteral("ALPHA-01");
     ac1.type = QStringLiteral("Fighter");
-    ac1.lat = 41.0082; ac1.lon = 28.9784; ac1.alt = 5000;
-    ac1.heading = 45; ac1.targetHeading = 45;
-    ac1.speed = 100; ac1.targetSpeed = 100;
+    ac1.lat = 41.0082;
+    ac1.lon = 28.9784;
+    ac1.alt = 5000;
+    ac1.heading = 45;
+    ac1.targetHeading = 45;
+    ac1.speed = 100;
+    ac1.targetSpeed = 100;
     ac1.targetAlt = 5000;
     ac1.controlMode = ControlMode::IDLE;
     m_appState->aircraftManager()->createAircraft(ac1);
@@ -306,9 +302,13 @@ void MainWindow::createDemonstrationScenario()
     ac2.id = QStringLiteral("ac_2");
     ac2.callSign = QStringLiteral("BRAVO-02");
     ac2.type = QStringLiteral("Transport");
-    ac2.lat = 40.9; ac2.lon = 28.8; ac2.alt = 3000;
-    ac2.heading = 90; ac2.targetHeading = 90;
-    ac2.speed = 80; ac2.targetSpeed = 80;
+    ac2.lat = 40.9;
+    ac2.lon = 28.8;
+    ac2.alt = 3000;
+    ac2.heading = 90;
+    ac2.targetHeading = 90;
+    ac2.speed = 80;
+    ac2.targetSpeed = 80;
     ac2.targetAlt = 3000;
     ac2.modelUri = QStringLiteral("/models/aircraft.glb");
     ac2.controlMode = ControlMode::IDLE;
@@ -321,8 +321,7 @@ void MainWindow::createDemonstrationScenario()
     route.waypoints = {
         {41.0082, 28.9784, 5000, QStringLiteral("Istanbul")},
         {41.1, 28.95, 5100, QStringLiteral("WP2")},
-        {37.9667, 34.6781, 5200, QStringLiteral("Nigde")}
-    };
+        {37.9667, 34.6781, 5200, QStringLiteral("Nigde")}};
     m_appState->routeManager()->createRoute(route);
 
     m_nextAircraftId = 3;

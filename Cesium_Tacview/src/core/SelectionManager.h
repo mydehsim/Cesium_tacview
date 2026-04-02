@@ -4,7 +4,12 @@
 #include <QObject>
 #include <QString>
 
-enum class SelectionType { NONE, AIRCRAFT, WAYPOINT };
+enum class SelectionType
+{
+    NONE,
+    AIRCRAFT,
+    WAYPOINT
+};
 
 class SelectionManager : public QObject
 {

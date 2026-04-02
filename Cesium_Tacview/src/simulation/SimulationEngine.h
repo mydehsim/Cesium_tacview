@@ -34,10 +34,10 @@ private slots:
     void tick();
 
 private:
-    AppState        *m_appState;
-    QTimer           m_timer;
-    SimulationClock  m_clock;
-    InputState       m_inputState;
+    AppState *m_appState;
+    QTimer m_timer;
+    SimulationClock m_clock;
+    InputState m_inputState;
 };
 
 #endif // SIMULATIONENGINE_H

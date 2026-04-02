@@ -4,8 +4,7 @@
 #include "app/AppState.h"
 
 SimulationEngine::SimulationEngine(AppState *appState, QObject *parent)
-    : QObject(parent)
-    , m_appState(appState)
+    : QObject(parent), m_appState(appState)
 {
     connect(&m_timer, &QTimer::timeout, this, &SimulationEngine::tick);
     m_timer.setTimerType(Qt::PreciseTimer);
@@ -59,21 +58,27 @@ void SimulationEngine::tick()
     const QString controlTarget = m_appState->selectionManager()->activeControlTarget();
 
     // Update each aircraft
-    for (const QString &id : acMgr->aircraftIds()) {
+    for (const QString &id : acMgr->aircraftIds())
+    {
         AircraftState *ac = acMgr->aircraft(id);
-        if (!ac) continue;
+        if (!ac)
+            continue;
 
-        switch (ac->controlMode) {
+        switch (ac->controlMode)
+        {
         case ControlMode::MANUAL:
-            if (id == controlTarget) {
+            if (id == controlTarget)
+            {
                 ManualController::update(*ac, dt, m_inputState);
             }
             KinematicModel::update(*ac, dt);
             break;
 
-        case ControlMode::AUTOPILOT: {
+        case ControlMode::AUTOPILOT:
+        {
             RouteState *route = rtMgr->route(ac->currentRouteId);
-            if (route) {
+            if (route)
+            {
                 AutopilotController::update(*ac, *route, dt);
             }
             KinematicModel::update(*ac, dt);

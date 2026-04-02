@@ -13,7 +13,8 @@ QJsonObject StateSerializer::serializeFullState(const AppState *state, quint64 t
     // Aircraft
     QJsonObject acObj;
     const auto &allAc = state->aircraftManager()->allAircraft();
-    for (auto it = allAc.cbegin(); it != allAc.cend(); ++it) {
+    for (auto it = allAc.cbegin(); it != allAc.cend(); ++it)
+    {
         acObj[it.key()] = it.value().toJson();
     }
     msg[QStringLiteral("aircraft")] = acObj;
@@ -21,7 +22,8 @@ QJsonObject StateSerializer::serializeFullState(const AppState *state, quint64 t
     // Routes
     QJsonObject rtObj;
     const auto &allRt = state->routeManager()->allRoutes();
-    for (auto it = allRt.cbegin(); it != allRt.cend(); ++it) {
+    for (auto it = allRt.cbegin(); it != allRt.cend(); ++it)
+    {
         rtObj[it.key()] = it.value().toJson();
     }
     msg[QStringLiteral("routes")] = rtObj;
@@ -44,7 +46,8 @@ QJsonObject StateSerializer::serializeDelta(const AppState *state, quint64 tick)
 
     QJsonObject acObj;
     const auto &allAc = state->aircraftManager()->allAircraft();
-    for (auto it = allAc.cbegin(); it != allAc.cend(); ++it) {
+    for (auto it = allAc.cbegin(); it != allAc.cend(); ++it)
+    {
         acObj[it.key()] = it.value().toDeltaJson();
     }
     msg[QStringLiteral("aircraft")] = acObj;

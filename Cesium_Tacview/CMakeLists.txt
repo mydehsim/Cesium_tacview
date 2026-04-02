@@ -19,6 +19,7 @@ set(PROJECT_SOURCES
     # App
     src/main.cpp
     src/app/MainWindow.h       src/app/MainWindow.cpp
+    src/app/MapWindow.h        src/app/MapWindow.cpp
     src/app/DebugWindow.h      src/app/DebugWindow.cpp
     src/app/AppState.h         src/app/AppState.cpp
 

@@ -50,7 +50,8 @@ const QMap<QString, RouteState> &RouteManager::allRoutes() const
 bool RouteManager::addWaypoint(const QString &routeId, const Waypoint &wp)
 {
     auto *r = route(routeId);
-    if (!r) return false;
+    if (!r)
+        return false;
     r->waypoints.append(wp);
     emit routeUpdated(routeId);
     emit stateChanged();
@@ -60,7 +61,8 @@ bool RouteManager::addWaypoint(const QString &routeId, const Waypoint &wp)
 bool RouteManager::removeWaypoint(const QString &routeId, int index)
 {
     auto *r = route(routeId);
-    if (!r || index < 0 || index >= r->waypoints.size()) return false;
+    if (!r || index < 0 || index >= r->waypoints.size())
+        return false;
     r->waypoints.removeAt(index);
     emit routeUpdated(routeId);
     emit stateChanged();
@@ -71,7 +73,8 @@ bool RouteManager::moveWaypoint(const QString &routeId, int index,
                                 double lat, double lon, double alt)
 {
     auto *r = route(routeId);
-    if (!r || index < 0 || index >= r->waypoints.size()) return false;
+    if (!r || index < 0 || index >= r->waypoints.size())
+        return false;
     r->waypoints[index].lat = lat;
     r->waypoints[index].lon = lon;
     r->waypoints[index].alt = alt;

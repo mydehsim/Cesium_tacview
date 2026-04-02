@@ -3,11 +3,11 @@
 
 #include <QMainWindow>
 
-class QWebEngineView;
 class AppState;
 class CesiumBridge;
 class SimulationEngine;
 class InputManager;
+class MapWindow;
 class AircraftListPanel;
 class AircraftInspector;
 class RouteEditorPanel;
@@ -21,9 +21,10 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
 
-    AppState         *appState()  { return m_appState; }
-    CesiumBridge     *bridge()    { return m_bridge; }
+    AppState *appState() { return m_appState; }
+    CesiumBridge *bridge() { return m_bridge; }
     SimulationEngine *simEngine() { return m_simEngine; }
+    MapWindow *mapWindow() { return m_mapWindow; }
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -38,22 +39,23 @@ private slots:
 private:
     void setupUi();
     void setupConnections();
+    void setupDualScreen();
     void createDemonstrationScenario();
 
     // Core
-    AppState         *m_appState;
-    CesiumBridge     *m_bridge;
+    AppState *m_appState;
+    CesiumBridge *m_bridge;
     SimulationEngine *m_simEngine;
-    InputManager     *m_inputManager;
+    InputManager *m_inputManager;
 
-    // Widgets
-    QWebEngineView   *m_webView;
+    // Map (separate window on second screen)
+    MapWindow *m_mapWindow;
 
     // Panels
-    AircraftListPanel   *m_aircraftPanel;
-    AircraftInspector   *m_inspectorPanel;
-    RouteEditorPanel    *m_routePanel;
-    SimulationLogPanel  *m_logPanel;
+    AircraftListPanel *m_aircraftPanel;
+    AircraftInspector *m_inspectorPanel;
+    RouteEditorPanel *m_routePanel;
+    SimulationLogPanel *m_logPanel;
     CommandHistoryPanel *m_cmdHistoryPanel;
 
     int m_nextAircraftId = 1;

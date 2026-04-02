@@ -4,44 +4,51 @@
 #include <QString>
 #include <QJsonObject>
 
-struct CreateAircraftCmd {
+struct CreateAircraftCmd
+{
     QString id;
     QString callSign;
     QString type;
-    double  lat, lon, alt;
-    double  heading;
+    double lat, lon, alt;
+    double heading;
     QString modelUri;
 };
 
-struct RemoveAircraftCmd {
+struct RemoveAircraftCmd
+{
     QString id;
 };
 
-struct SetControlModeCmd {
+struct SetControlModeCmd
+{
     QString id;
-    int     mode; // ControlMode enum cast
+    int mode; // ControlMode enum cast
 };
 
-struct AssignRouteCmd {
+struct AssignRouteCmd
+{
     QString aircraftId;
     QString routeId;
 };
 
-struct MoveWaypointCmd {
+struct MoveWaypointCmd
+{
     QString routeId;
-    int     waypointIndex;
-    double  lat, lon, alt;
+    int waypointIndex;
+    double lat, lon, alt;
 };
 
-struct AddWaypointCmd {
+struct AddWaypointCmd
+{
     QString routeId;
-    double  lat, lon, alt;
+    double lat, lon, alt;
     QString name;
 };
 
-struct RemoveWaypointCmd {
+struct RemoveWaypointCmd
+{
     QString routeId;
-    int     waypointIndex;
+    int waypointIndex;
 };
 
 #endif // COMMANDTYPES_H

@@ -29,11 +29,11 @@ private slots:
     void onDeleteClicked();
 
 private:
-    AppState     *m_appState;
+    AppState *m_appState;
     CesiumBridge *m_bridge;
-    QTreeWidget  *m_tree;
-    QPushButton  *m_createBtn;
-    QPushButton  *m_deleteBtn;
+    QTreeWidget *m_tree;
+    QPushButton *m_createBtn;
+    QPushButton *m_deleteBtn;
 };
 
 #endif // AIRCRAFTLISTPANEL_H

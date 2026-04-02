@@ -5,10 +5,11 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 
-struct CesiumEvent {
-    QString     type;
+struct CesiumEvent
+{
+    QString type;
     QJsonObject payload;
-    qint64      timestamp = 0;
+    qint64 timestamp = 0;
 
     bool isValid() const { return !type.isEmpty(); }
 };
