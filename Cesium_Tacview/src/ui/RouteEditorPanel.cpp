@@ -3,6 +3,7 @@
 #include "bridge/CesiumBridge.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QLabel>
 
 RouteEditorPanel::RouteEditorPanel(AppState *appState, CesiumBridge *bridge,
                                    QWidget *parent)
@@ -13,17 +14,33 @@ RouteEditorPanel::RouteEditorPanel(AppState *appState, CesiumBridge *bridge,
     auto *container = new QWidget;
     auto *layout = new QVBoxLayout(container);
 
+    // Route selector row
+    auto *routeRow = new QHBoxLayout;
+    routeRow->addWidget(new QLabel(tr("Route:")));
     m_routeCombo = new QComboBox;
-    layout->addWidget(m_routeCombo);
+    routeRow->addWidget(m_routeCombo, 1);
+    m_newRouteBtn = new QPushButton(tr("+ New"));
+    m_newRouteBtn->setMaximumWidth(60);
+    routeRow->addWidget(m_newRouteBtn);
+    layout->addLayout(routeRow);
 
+    // Loop toggle
+    m_loopBtn = new QPushButton(tr("🔁 Loop: OFF"));
+    m_loopBtn->setCheckable(true);
+    layout->addWidget(m_loopBtn);
+
+    // Waypoint list
     m_waypointList = new QListWidget;
     m_waypointList->setDragDropMode(QAbstractItemView::InternalMove);
+    m_waypointList->setAlternatingRowColors(true);
     layout->addWidget(m_waypointList);
 
+    // Action buttons
     auto *btnLayout = new QHBoxLayout;
     m_addBtn = new QPushButton(tr("+ WP"));
     m_removeBtn = new QPushButton(tr("- WP"));
-    m_applyBtn = new QPushButton(tr("Apply"));
+    m_applyBtn = new QPushButton(tr("⇒ Assign to Aircraft"));
+    m_applyBtn->setToolTip(tr("Assign this route to the selected aircraft and start AUTOPILOT"));
     btnLayout->addWidget(m_addBtn);
     btnLayout->addWidget(m_removeBtn);
     btnLayout->addWidget(m_applyBtn);
@@ -33,9 +50,11 @@ RouteEditorPanel::RouteEditorPanel(AppState *appState, CesiumBridge *bridge,
 
     connect(m_routeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &RouteEditorPanel::onRouteSelected);
+    connect(m_newRouteBtn, &QPushButton::clicked, this, &RouteEditorPanel::onNewRoute);
     connect(m_addBtn, &QPushButton::clicked, this, &RouteEditorPanel::onAddWaypoint);
     connect(m_removeBtn, &QPushButton::clicked, this, &RouteEditorPanel::onRemoveWaypoint);
     connect(m_applyBtn, &QPushButton::clicked, this, &RouteEditorPanel::onApplyRoute);
+    connect(m_loopBtn, &QPushButton::toggled, this, &RouteEditorPanel::onLoopToggled);
 
     connect(appState->routeManager(), &RouteManager::stateChanged, this, &RouteEditorPanel::refresh);
 }
@@ -43,16 +62,20 @@ RouteEditorPanel::RouteEditorPanel(AppState *appState, CesiumBridge *bridge,
 void RouteEditorPanel::refresh()
 {
     QString current = m_routeCombo->currentData().toString();
+    m_routeCombo->blockSignals(true);
     m_routeCombo->clear();
 
     for (const QString &id : m_appState->routeManager()->routeIds())
     {
-        m_routeCombo->addItem(id, id);
+        const RouteState *rt = m_appState->routeManager()->route(id);
+        QString label = id + QStringLiteral(" (%1 WP)").arg(rt ? rt->waypoints.size() : 0);
+        m_routeCombo->addItem(label, id);
     }
 
     int idx = m_routeCombo->findData(current);
     if (idx >= 0)
         m_routeCombo->setCurrentIndex(idx);
+    m_routeCombo->blockSignals(false);
 
     onRouteSelected(m_routeCombo->currentIndex());
 }
@@ -60,13 +83,17 @@ void RouteEditorPanel::refresh()
 void RouteEditorPanel::onRouteSelected(int index)
 {
     m_waypointList->clear();
-    if (index < 0)
-        return;
+    if (index < 0) return;
 
     QString routeId = m_routeCombo->currentData().toString();
     const RouteState *route = m_appState->routeManager()->route(routeId);
-    if (!route)
-        return;
+    if (!route) return;
+
+    // Update loop button
+    m_loopBtn->blockSignals(true);
+    m_loopBtn->setChecked(route->loopMode);
+    m_loopBtn->setText(route->loopMode ? tr("🔁 Loop: ON") : tr("🔁 Loop: OFF"));
+    m_loopBtn->blockSignals(false);
 
     for (int i = 0; i < route->waypoints.size(); ++i)
     {
@@ -80,6 +107,21 @@ void RouteEditorPanel::onRouteSelected(int index)
             text = wp.name + QStringLiteral(" — ") + text;
         m_waypointList->addItem(text);
     }
+}
+
+void RouteEditorPanel::onNewRoute()
+{
+    int nextId = m_appState->routeManager()->routeIds().size() + 1;
+    RouteState route;
+    route.id = QStringLiteral("route_%1").arg(nextId);
+    route.loopMode = false;
+    m_appState->routeManager()->createRoute(route);
+    m_bridge->pushFullSync();
+
+    // Select the new route
+    refresh();
+    int idx = m_routeCombo->findData(route.id);
+    if (idx >= 0) m_routeCombo->setCurrentIndex(idx);
 }
 
 void RouteEditorPanel::onAddWaypoint()
@@ -106,6 +148,20 @@ void RouteEditorPanel::onRemoveWaypoint()
 
     m_appState->routeManager()->removeWaypoint(routeId, row);
     m_bridge->pushFullSync();
+}
+
+void RouteEditorPanel::onLoopToggled(bool checked)
+{
+    QString routeId = m_routeCombo->currentData().toString();
+    if (routeId.isEmpty()) return;
+
+    RouteState *route = m_appState->routeManager()->route(routeId);
+    if (route)
+    {
+        route->loopMode = checked;
+        m_loopBtn->setText(checked ? tr("🔁 Loop: ON") : tr("🔁 Loop: OFF"));
+        m_bridge->pushFullSync();
+    }
 }
 
 void RouteEditorPanel::onApplyRoute()

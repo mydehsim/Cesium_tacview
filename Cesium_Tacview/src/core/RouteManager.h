@@ -23,6 +23,8 @@ public:
     bool removeWaypoint(const QString &routeId, int index);
     bool moveWaypoint(const QString &routeId, int index, double lat, double lon, double alt);
 
+    void emitChanged() { emit stateChanged(); }
+
 signals:
     void routeCreated(const QString &id);
     void routeRemoved(const QString &id);

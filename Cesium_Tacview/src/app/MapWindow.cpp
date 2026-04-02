@@ -2,6 +2,7 @@
 #include "AppState.h"
 #include "bridge/CesiumBridge.h"
 #include "ui/SimulationLogPanel.h"
+#include "ui/MapToolbar.h"
 
 #include <QWebEngineView>
 #include <QWebEnginePage>
@@ -12,6 +13,7 @@
 #include <QStatusBar>
 #include <QTimer>
 #include <QStandardPaths>
+#include <QResizeEvent>
 #include <QDebug>
 
 // Custom page that captures JS console messages
@@ -96,6 +98,18 @@ void MapWindow::setupUi()
             statusBar()->showMessage(QStringLiteral("ERROR: Failed to load Cesium page"));
         }
     });
+
+    // ── Floating Map Toolbar (overlaid on top of web view) ──
+    m_toolbar = new MapToolbar(m_appState, m_bridge, m_webView);
+    m_toolbar->raise();
+    m_toolbar->show();
+
+    // Forward toolbar logs
+    connect(m_toolbar, &MapToolbar::logMessage, this, &MapWindow::logMessage);
+    connect(m_toolbar, &MapToolbar::logMessage, m_logPanel, &SimulationLogPanel::appendLog);
+
+    // Connect bridge map clicks to toolbar
+    connect(m_bridge, &CesiumBridge::mapClicked, m_toolbar, &MapToolbar::onMapClicked);
 }
 
 void MapWindow::moveToScreen(int screenIndex)
@@ -113,4 +127,21 @@ void MapWindow::moveToScreen(int screenIndex)
     emit logMessage(QStringLiteral("Map window moved to screen %1 (%2)")
                         .arg(screenIndex)
                         .arg(target->name()));
+}
+
+void MapWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+    repositionToolbar();
+}
+
+void MapWindow::repositionToolbar()
+{
+    if (!m_toolbar) return;
+    // Center toolbar at top of the web view
+    int toolbarWidth = qMin(m_webView->width() - 40, 750);
+    m_toolbar->setFixedWidth(toolbarWidth);
+    int x = (m_webView->width() - toolbarWidth) / 2;
+    m_toolbar->move(x, 10);
+    m_toolbar->raise();
 }

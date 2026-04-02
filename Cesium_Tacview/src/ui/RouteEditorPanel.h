@@ -20,19 +20,23 @@ public slots:
     void refresh();
 
 private slots:
+    void onNewRoute();
     void onAddWaypoint();
     void onRemoveWaypoint();
     void onApplyRoute();
     void onRouteSelected(int index);
+    void onLoopToggled(bool checked);
 
 private:
     AppState *m_appState;
     CesiumBridge *m_bridge;
     QComboBox *m_routeCombo;
     QListWidget *m_waypointList;
+    QPushButton *m_newRouteBtn;
     QPushButton *m_addBtn;
     QPushButton *m_removeBtn;
     QPushButton *m_applyBtn;
+    QPushButton *m_loopBtn;
 };
 
 #endif // ROUTEEDITORPANEL_H

@@ -8,6 +8,7 @@ class QWebEnginePage;
 class AppState;
 class CesiumBridge;
 class SimulationLogPanel;
+class MapToolbar;
 
 class MapWindow : public QMainWindow
 {
@@ -17,19 +18,25 @@ public:
     ~MapWindow() override;
 
     QWebEngineView *webView() { return m_webView; }
+    MapToolbar *toolbar() { return m_toolbar; }
 
     void moveToScreen(int screenIndex);
 
 signals:
     void logMessage(const QString &msg);
 
+protected:
+    void resizeEvent(QResizeEvent *event) override;
+
 private:
     void setupUi();
+    void repositionToolbar();
 
     AppState *m_appState;
     CesiumBridge *m_bridge;
     QWebEngineView *m_webView;
     SimulationLogPanel *m_logPanel;
+    MapToolbar *m_toolbar;
 };
 
 #endif // MAPWINDOW_H

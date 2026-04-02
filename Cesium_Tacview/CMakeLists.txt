@@ -50,6 +50,7 @@ set(PROJECT_SOURCES
     src/ui/RouteEditorPanel.h   src/ui/RouteEditorPanel.cpp
     src/ui/SimulationLogPanel.h src/ui/SimulationLogPanel.cpp
     src/ui/CommandHistoryPanel.h src/ui/CommandHistoryPanel.cpp
+    src/ui/MapToolbar.h         src/ui/MapToolbar.cpp
 
     # Input
     src/input/InputManager.h   src/input/InputManager.cpp
