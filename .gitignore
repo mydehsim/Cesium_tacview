@@ -28,6 +28,10 @@ Thumbs.db
 
 # Compiled binaries
 *.exe
+
+# Secrets
+.env
+scripts/create-issues.ps1
 *.dll
 *.obj
 *.o
