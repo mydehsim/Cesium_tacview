@@ -33,7 +33,7 @@ void InputManager::keyPressed(int key)
         if (!target.isEmpty())
         {
             AircraftState *ac = m_appState->aircraftManager()->aircraft(target);
-            if (ac && ac->controlMode == ControlMode::AUTOPILOT)
+            if (ac && ac->controlMode != ControlMode::MANUAL)
             {
                 ac->controlMode = ControlMode::MANUAL;
                 emit logMessage(QStringLiteral("Manual override: %1").arg(target));
@@ -80,10 +80,21 @@ void InputManager::handleAction(int key)
             AircraftState *ac = m_appState->aircraftManager()->aircraft(target);
             if (ac)
             {
-                if (ac->controlMode == ControlMode::MANUAL)
-                    ac->controlMode = ControlMode::AUTOPILOT;
-                else if (ac->controlMode == ControlMode::AUTOPILOT)
+                switch (ac->controlMode)
+                {
+                case ControlMode::IDLE:
                     ac->controlMode = ControlMode::MANUAL;
+                    break;
+                case ControlMode::MANUAL:
+                    ac->controlMode = ControlMode::AUTOPILOT;
+                    break;
+                case ControlMode::AUTOPILOT:
+                    ac->controlMode = ControlMode::MANUAL;
+                    break;
+                default:
+                    ac->controlMode = ControlMode::MANUAL;
+                    break;
+                }
                 emit logMessage(QStringLiteral("Mode: %1 → %2")
                                     .arg(target, controlModeToString(ac->controlMode)));
             }

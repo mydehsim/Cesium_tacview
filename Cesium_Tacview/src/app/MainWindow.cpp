@@ -264,6 +264,9 @@ void MainWindow::onCreateAircraft()
     ac.controlMode = ControlMode::IDLE;
 
     m_appState->aircraftManager()->createAircraft(ac);
+
+    // Auto-select newly created aircraft
+    m_appState->selectionManager()->selectEntity(ac.id, SelectionType::AIRCRAFT);
     m_bridge->pushFullSync();
 
     // Fly camera to new aircraft so it's visible

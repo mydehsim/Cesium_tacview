@@ -13,6 +13,7 @@ find_package(Qt6 REQUIRED COMPONENTS
     Widgets
     WebEngineWidgets
     WebChannel
+    Network
 )
 
 set(PROJECT_SOURCES
@@ -56,6 +57,7 @@ set(PROJECT_SOURCES
 
     # Protocols
     src/protocols/IProtocolAdapter.h
+    src/protocols/TacviewAdapter.h  src/protocols/TacviewAdapter.cpp
 )
 
 qt_add_executable(Cesium_Tacview
@@ -71,6 +73,7 @@ target_link_libraries(Cesium_Tacview PRIVATE
     Qt6::Widgets
     Qt6::WebEngineWidgets
     Qt6::WebChannel
+    Qt6::Network
 )
 
 # Web content path passed to C++ as compile definition
