@@ -1,0 +1,53 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 16,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "msvc-base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/../build-qt",
+            "cacheVariables": {
+                "CMAKE_PREFIX_PATH": "C:/Qt-6.8.3/6.8.3/msvc2022_64",
+                "CMAKE_CXX_STANDARD": "17"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "dev-debug",
+            "displayName": "Debug (MSVC + Ninja)",
+            "inherits": "msvc-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "dev-release",
+            "displayName": "Release (MSVC + Ninja)",
+            "inherits": "msvc-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "build-debug",
+            "displayName": "Build Debug",
+            "configurePreset": "dev-debug"
+        },
+        {
+            "name": "build-release",
+            "displayName": "Build Release",
+            "configurePreset": "dev-release"
+        }
+    ]
+}

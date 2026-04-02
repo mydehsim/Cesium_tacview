@@ -1,0 +1,76 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Qt App",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-qt/Cesium_Tacview.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build-qt",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\Qt-6.8.3\\6.8.3\\msvc2022_64\\bin;${env:PATH}"
+                },
+                {
+                    "name": "QT_QPA_PLATFORM_PLUGIN_PATH",
+                    "value": "C:\\Qt-6.8.3\\6.8.3\\msvc2022_64\\plugins\\platforms"
+                },
+                {
+                    "name": "QTWEBENGINEPROCESS_PATH",
+                    "value": "C:\\Qt-6.8.3\\6.8.3\\msvc2022_64\\bin\\QtWebEngineProcess.exe"
+                }
+            ],
+            "console": "integratedTerminal",
+            "preLaunchTask": "cmake-build-debug",
+            "sourceFileMap": {
+                "${workspaceFolder}/build-qt": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Debug JS (Cesium)",
+            "type": "msedge",
+            "request": "attach",
+            "port": 9222,
+            "webRoot": "${workspaceFolder}/cesium_web",
+            "sourceMaps": true,
+            "sourceMapPathOverrides": {
+                "webpack:///./src/*": "${workspaceFolder}/cesium_web/src/*"
+            }
+        },
+        {
+            "name": "Run Without Debug",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-qt/Cesium_Tacview.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build-qt",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\Qt-6.8.3\\6.8.3\\msvc2022_64\\bin;${env:PATH}"
+                },
+                {
+                    "name": "QT_QPA_PLATFORM_PLUGIN_PATH",
+                    "value": "C:\\Qt-6.8.3\\6.8.3\\msvc2022_64\\plugins\\platforms"
+                },
+                {
+                    "name": "QTWEBENGINEPROCESS_PATH",
+                    "value": "C:\\Qt-6.8.3\\6.8.3\\msvc2022_64\\bin\\QtWebEngineProcess.exe"
+                }
+            ],
+            "noDebug": true,
+            "preLaunchTask": "cmake-build-debug"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Full Debug (Qt + JS)",
+            "configurations": ["Debug Qt App", "Debug JS (Cesium)"],
+            "stopAll": true
+        }
+    ]
+}

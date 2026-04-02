@@ -1,0 +1,120 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "cmake-configure",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>&1 && cmake --preset dev-debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/Cesium_Tacview"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "cmake-build-debug",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>&1 && cmake --build ${workspaceFolder}\\build-qt --parallel"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$msCompile",
+            "dependsOn": "cmake-configure"
+        },
+        {
+            "label": "cmake-build-release",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>&1 && cmake --build ${workspaceFolder}\\build-qt --config Release --parallel"
+            ],
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "cmake-clean",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>&1 && cmake --build ${workspaceFolder}\\build-qt --target clean"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "vite-start",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "dev"],
+            "options": {
+                "cwd": "${workspaceFolder}/cesium_web"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "VITE",
+                    "endsPattern": "ready in"
+                }
+            },
+            "presentation": {
+                "reveal": "silent",
+                "panel": "dedicated",
+                "group": "dev-servers"
+            }
+        },
+        {
+            "label": "vite-stop",
+            "type": "shell",
+            "command": "taskkill",
+            "args": ["/F", "/IM", "node.exe"],
+            "windows": {
+                "command": "taskkill",
+                "args": ["/F", "/IM", "node.exe"]
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent"
+            }
+        },
+        {
+            "label": "run-app",
+            "type": "shell",
+            "command": "${workspaceFolder}/build-qt/Cesium_Tacview.exe",
+            "options": {
+                "env": {
+                    "PATH": "C:\\Qt-6.8.3\\6.8.3\\msvc2022_64\\bin;${env:PATH}",
+                    "QT_QPA_PLATFORM_PLUGIN_PATH": "C:\\Qt-6.8.3\\6.8.3\\msvc2022_64\\plugins\\platforms",
+                    "QTWEBENGINEPROCESS_PATH": "C:\\Qt-6.8.3\\6.8.3\\msvc2022_64\\bin\\QtWebEngineProcess.exe"
+                }
+            },
+            "dependsOn": "cmake-build-debug",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "full-dev",
+            "dependsOn": ["vite-start", "run-app"],
+            "dependsOrder": "sequence",
+            "problemMatcher": [],
+            "group": "build"
+        }
+    ]
+}
