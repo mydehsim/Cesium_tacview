@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Cesium Tacview — Map</title>
+  <style>
+    html, body, #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Cesium map container — fills entire window, no UI panels -->
+  <div id="cesiumContainer"></div>
+
+  <!-- qwebchannel.js is injected by Qt via QWebEngineScript at DocumentCreation -->
+  <!-- Qt-optimized entry point (no OSM buildings, no ControlPanel, no TcpClient) -->
+  <script type="module" src="/src/main-qt.js"></script>
+</body>
+
+</html>

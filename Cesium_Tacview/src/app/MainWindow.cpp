@@ -219,6 +219,9 @@ void MainWindow::onCesiumReady()
     m_logPanel->appendLog(QStringLiteral("Cesium viewer connected and ready"));
 
     createDemonstrationScenario();
+
+    // Auto-start simulation so demo aircraft move immediately
+    m_simEngine->start();
 }
 
 void MainWindow::onTickCompleted(quint64 tick)
@@ -263,6 +266,14 @@ void MainWindow::onCreateAircraft()
     m_appState->aircraftManager()->createAircraft(ac);
     m_bridge->pushFullSync();
 
+    // Fly camera to new aircraft so it's visible
+    QJsonObject flyPayload;
+    flyPayload[QStringLiteral("lat")] = ac.lat;
+    flyPayload[QStringLiteral("lon")] = ac.lon;
+    flyPayload[QStringLiteral("alt")] = ac.alt + 5000;
+    flyPayload[QStringLiteral("duration")] = 1.5;
+    m_bridge->pushCommand(StateSerializer::createCommand(QStringLiteral("CMD_CAMERA_FLY_TO"), flyPayload));
+
     m_logPanel->appendLog(QStringLiteral("Created aircraft: %1 (%2)").arg(ac.id, ac.callSign));
 }
 
@@ -295,7 +306,8 @@ void MainWindow::createDemonstrationScenario()
     ac1.speed = 100;
     ac1.targetSpeed = 100;
     ac1.targetAlt = 5000;
-    ac1.controlMode = ControlMode::IDLE;
+    ac1.controlMode = ControlMode::AUTOPILOT;
+    ac1.currentRouteId = QStringLiteral("route_1");
     m_appState->aircraftManager()->createAircraft(ac1);
 
     AircraftState ac2;
@@ -311,13 +323,15 @@ void MainWindow::createDemonstrationScenario()
     ac2.targetSpeed = 80;
     ac2.targetAlt = 3000;
     ac2.modelUri = QStringLiteral("/models/aircraft.glb");
-    ac2.controlMode = ControlMode::IDLE;
+    ac2.controlMode = ControlMode::AUTOPILOT;
+    ac2.currentRouteId = QStringLiteral("route_1");
     m_appState->aircraftManager()->createAircraft(ac2);
 
     // Create a demo route
     RouteState route;
     route.id = QStringLiteral("route_1");
     route.aircraftId = QStringLiteral("ac_1");
+    route.loopMode = true;
     route.waypoints = {
         {41.0082, 28.9784, 5000, QStringLiteral("Istanbul")},
         {41.1, 28.95, 5100, QStringLiteral("WP2")},

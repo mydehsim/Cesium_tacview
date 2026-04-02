@@ -1,6 +1,7 @@
 #include "AircraftListPanel.h"
 #include "app/AppState.h"
 #include "bridge/CesiumBridge.h"
+#include "bridge/StateSerializer.h"
 
 AircraftListPanel::AircraftListPanel(AppState *appState, CesiumBridge *bridge,
                                      QWidget *parent)
@@ -69,6 +70,18 @@ void AircraftListPanel::onItemClicked(QTreeWidgetItem *item, int /*column*/)
     QString id = item->data(0, Qt::UserRole).toString();
     m_appState->selectionManager()->selectEntity(id, SelectionType::AIRCRAFT);
     m_bridge->pushFullSync();
+
+    // Fly camera to the selected aircraft
+    const AircraftState *ac = m_appState->aircraftManager()->aircraft(id);
+    if (ac) {
+        QJsonObject flyPayload;
+        flyPayload[QStringLiteral("lat")] = ac->lat;
+        flyPayload[QStringLiteral("lon")] = ac->lon;
+        flyPayload[QStringLiteral("alt")] = ac->alt + 5000;
+        flyPayload[QStringLiteral("duration")] = 1.5;
+        m_bridge->pushCommand(StateSerializer::createCommand(
+            QStringLiteral("CMD_CAMERA_FLY_TO"), flyPayload));
+    }
 }
 
 void AircraftListPanel::onCreateClicked()
