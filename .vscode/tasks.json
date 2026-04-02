@@ -4,10 +4,9 @@
         {
             "label": "cmake-configure",
             "type": "shell",
-            "command": "cmd",
+            "command": "cmake",
             "args": [
-                "/c",
-                "call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>&1 && cmake --preset dev-debug"
+                "--preset", "dev-debug"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/Cesium_Tacview"
@@ -18,11 +17,15 @@
         {
             "label": "cmake-build-debug",
             "type": "shell",
-            "command": "cmd",
+            "command": "cmake",
             "args": [
-                "/c",
-                "call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>&1 && cmake --build ${workspaceFolder}\\build-qt --parallel"
+                "--build",
+                "--preset", "build-debug",
+                "--parallel"
             ],
+            "options": {
+                "cwd": "${workspaceFolder}/Cesium_Tacview"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -33,22 +36,29 @@
         {
             "label": "cmake-build-release",
             "type": "shell",
-            "command": "cmd",
+            "command": "cmake",
             "args": [
-                "/c",
-                "call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>&1 && cmake --build ${workspaceFolder}\\build-qt --config Release --parallel"
+                "--build",
+                "--preset", "build-release",
+                "--parallel"
             ],
+            "options": {
+                "cwd": "${workspaceFolder}/Cesium_Tacview"
+            },
             "group": "build",
             "problemMatcher": "$msCompile"
         },
         {
             "label": "cmake-clean",
             "type": "shell",
-            "command": "cmd",
+            "command": "cmake",
             "args": [
-                "/c",
-                "call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul 2>&1 && cmake --build ${workspaceFolder}\\build-qt --target clean"
+                "--build", "--preset", "build-debug",
+                "--target", "clean"
             ],
+            "options": {
+                "cwd": "${workspaceFolder}/Cesium_Tacview"
+            },
             "group": "build",
             "problemMatcher": []
         },

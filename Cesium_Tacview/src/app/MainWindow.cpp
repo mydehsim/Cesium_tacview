@@ -21,6 +21,8 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QUrl>
+#include <QTimer>
+#include <QStandardPaths>
 #include <QDebug>
 
 // Custom page that captures JS console messages into the simulation log
@@ -82,7 +84,11 @@ void MainWindow::setupUi()
     auto *profile = QWebEngineProfile::defaultProfile();
     profile->settings()->setAttribute(QWebEngineSettings::WebGLEnabled, true);
     profile->setHttpCacheType(QWebEngineProfile::DiskHttpCache);
-    profile->setHttpCacheMaximumSize(512 * 1024 * 1024); // 512 MB tile cache
+    profile->setHttpCacheMaximumSize(1024 * 1024 * 1024); // 1 GB tile cache
+
+    // Persistent storage for Cesium ion tokens etc.
+    profile->setPersistentStoragePath(
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/webengine"));
 
     // Use custom page that captures JS console output
     auto *page = new CesiumPage(profile, m_webView);
@@ -105,6 +111,44 @@ void MainWindow::setupUi()
 
     // Load existing Cesium web app from Vite dev server
     m_webView->setUrl(QUrl(QStringLiteral("http://localhost:5173")));
+
+    // Inject CesiumJS performance tuning after page finishes loading
+    connect(m_webView, &QWebEngineView::loadFinished, this, [this](bool ok) {
+        if (!ok) return;
+        // Wait for Cesium viewer to initialize, then tune performance
+        QTimer::singleShot(3000, this, [this]() {
+            const QString perfScript = QStringLiteral(R"JS(
+                (function() {
+                    if (typeof viewer === 'undefined') {
+                        console.log('[Qt] viewer not found, skipping perf tuning');
+                        return;
+                    }
+                    // Terrain: higher error tolerance = less tile requests = faster
+                    viewer.scene.globe.maximumScreenSpaceError = 4;  // default=2
+
+                    // Disable expensive post-processing effects
+                    viewer.scene.fxaa = false;
+                    viewer.scene.fog.enabled = false;
+                    viewer.scene.globe.showGroundAtmosphere = false;
+                    viewer.scene.skyAtmosphere.show = false;
+
+                    // Reduce shadow/lighting overhead
+                    viewer.shadows = false;
+                    viewer.scene.globe.enableLighting = false;
+
+                    // Render on demand (not continuous) when idle
+                    viewer.scene.requestRenderMode = true;
+                    viewer.scene.maximumRenderTimeChange = 0.0;
+
+                    // Tileset performance
+                    viewer.scene.globe.tileCacheSize = 1000;
+
+                    console.log('[Qt] CesiumJS performance tuning applied');
+                })();
+            )JS");
+            m_webView->page()->runJavaScript(perfScript);
+        });
+    });
 
     // --- Menu Bar ---
     auto *fileMenu = menuBar()->addMenu(tr("&File"));
