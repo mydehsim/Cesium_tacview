@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 #include "MapWindow.h"
+#include "ViteProcess.h"
 #include "AppState.h"
 #include "bridge/CesiumBridge.h"
 #include "bridge/StateSerializer.h"
@@ -10,6 +11,7 @@
 #include "ui/RouteEditorPanel.h"
 #include "ui/SimulationLogPanel.h"
 #include "ui/CommandHistoryPanel.h"
+#include "ui/MapToolbar.h"
 #include "core/RouteState.h"
 
 #include <QKeyEvent>
@@ -34,6 +36,10 @@ MainWindow::MainWindow(QWidget *parent)
     m_simEngine = new SimulationEngine(m_appState, this);
     m_inputManager = new InputManager(m_appState, m_simEngine, m_bridge, this);
 
+    // Vite dev server — auto-start before loading Cesium
+    QString webDir = QStringLiteral(WEB_CONTENT_PATH);
+    m_viteProcess = new ViteProcess(webDir, this);
+
     // Map window (separate, goes to second screen)
     m_mapWindow = new MapWindow(m_appState, m_bridge, nullptr);
 
@@ -41,12 +47,19 @@ MainWindow::MainWindow(QWidget *parent)
     setupConnections();
     setupDualScreen();
 
+    // Start Vite — when ready, loadCesium() is called via onViteReady()
+    m_viteProcess->start();
+
     setWindowTitle(QStringLiteral("Cesium Tacview — Command & Control"));
     resize(1200, 900);
 }
 
 MainWindow::~MainWindow()
 {
+    // Stop Vite dev server
+    if (m_viteProcess)
+        m_viteProcess->stop();
+
     // MapWindow is not a child (nullptr parent), delete explicitly
     delete m_mapWindow;
 }
@@ -166,6 +179,17 @@ void MainWindow::setupConnections()
 
     // MapWindow log forwarding
     connect(m_mapWindow, &MapWindow::logMessage, m_logPanel, &SimulationLogPanel::appendLog);
+
+    // Vite process
+    connect(m_viteProcess, &ViteProcess::ready, this, &MainWindow::onViteReady);
+    connect(m_viteProcess, &ViteProcess::errorOccurred, this, &MainWindow::onViteError);
+    connect(m_viteProcess, &ViteProcess::logMessage, m_logPanel, &SimulationLogPanel::appendLog);
+
+    // MapToolbar "Fly" pressed → ensure simulation engine is running
+    connect(m_mapWindow->toolbar(), &MapToolbar::requestSimStart, this, [this]() {
+        if (!m_simEngine->isRunning())
+            m_simEngine->start();
+    });
 }
 
 void MainWindow::setupDualScreen()
@@ -226,6 +250,22 @@ void MainWindow::onCesiumReady()
 
     // Auto-start simulation so demo aircraft move immediately
     m_simEngine->start();
+
+    // Refresh map toolbar so combos are populated with demo data
+    m_mapWindow->toolbar()->refresh();
+}
+
+void MainWindow::onViteReady()
+{
+    m_logPanel->appendLog(QStringLiteral("Vite dev server ready — loading Cesium"));
+    statusBar()->showMessage(tr("Vite ready — Loading Cesium..."));
+    m_mapWindow->loadCesium();
+}
+
+void MainWindow::onViteError(const QString &msg)
+{
+    m_logPanel->appendLog(QStringLiteral("Vite ERROR: %1").arg(msg));
+    statusBar()->showMessage(QStringLiteral("Vite Error: %1").arg(msg));
 }
 
 void MainWindow::onTickCompleted(quint64 tick)

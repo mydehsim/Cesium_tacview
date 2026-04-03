@@ -14,6 +14,7 @@
 #include <QTimer>
 #include <QStandardPaths>
 #include <QResizeEvent>
+#include <QKeyEvent>
 #include <QDebug>
 
 // Custom page that captures JS console messages
@@ -85,11 +86,11 @@ void MapWindow::setupUi()
     // Attach QWebChannel bridge to this page
     m_bridge->attachToPage(m_webView->page());
 
-    // Load Qt-optimized Cesium from Vite dev server
-    m_webView->setUrl(QUrl(QStringLiteral("http://localhost:5173/index-qt.html")));
+    // Don't load URL yet — wait for ViteProcess::ready() → loadCesium()
+    showLoading();
 
     // StatusBar with FPS and bridge status
-    statusBar()->showMessage(QStringLiteral("Loading Cesium..."));
+    statusBar()->showMessage(QStringLiteral("Waiting for Vite dev server..."));
 
     connect(m_webView, &QWebEngineView::loadFinished, this, [this](bool ok) {
         if (ok) {
@@ -135,6 +136,33 @@ void MapWindow::resizeEvent(QResizeEvent *event)
     repositionToolbar();
 }
 
+void MapWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (!m_toolbar) {
+        QMainWindow::keyPressEvent(event);
+        return;
+    }
+
+    switch (event->key()) {
+    case Qt::Key_W:
+        if (!event->isAutoRepeat())
+            m_toolbar->toggleWaypointMode();
+        break;
+    case Qt::Key_F5:
+        if (!event->isAutoRepeat())
+            m_toolbar->onStartAircraft();
+        break;
+    case Qt::Key_Escape:
+        if (!event->isAutoRepeat())
+            m_toolbar->onStopAircraft();
+        break;
+    default:
+        QMainWindow::keyPressEvent(event);
+        return;
+    }
+    event->accept();
+}
+
 void MapWindow::repositionToolbar()
 {
     if (!m_toolbar) return;
@@ -144,4 +172,22 @@ void MapWindow::repositionToolbar()
     int x = (m_webView->width() - toolbarWidth) / 2;
     m_toolbar->move(x, 10);
     m_toolbar->raise();
+}
+
+void MapWindow::loadCesium()
+{
+    m_webView->setUrl(QUrl(QStringLiteral("http://localhost:5173/index-qt.html")));
+    statusBar()->showMessage(QStringLiteral("Loading Cesium..."));
+}
+
+void MapWindow::showLoading()
+{
+    m_webView->setHtml(QStringLiteral(
+        "<html><body style='background:#111;color:#aaa;display:flex;align-items:center;"
+        "justify-content:center;height:100vh;margin:0;font-family:sans-serif;'>"
+        "<div style='text-align:center'>"
+        "<div style='font-size:48px;margin-bottom:20px'>🌍</div>"
+        "<h2>Starting Cesium...</h2>"
+        "<p>Waiting for Vite dev server on localhost:5173</p>"
+        "</div></body></html>"));
 }

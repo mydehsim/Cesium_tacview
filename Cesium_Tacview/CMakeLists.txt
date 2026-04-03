@@ -23,6 +23,7 @@ set(PROJECT_SOURCES
     src/app/MapWindow.h        src/app/MapWindow.cpp
     src/app/DebugWindow.h      src/app/DebugWindow.cpp
     src/app/AppState.h         src/app/AppState.cpp
+    src/app/ViteProcess.h      src/app/ViteProcess.cpp
 
     # Core
     src/core/AircraftState.h

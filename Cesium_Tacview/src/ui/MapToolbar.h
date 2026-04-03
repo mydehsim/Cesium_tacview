@@ -20,18 +20,19 @@ public:
 
 signals:
     void logMessage(const QString &msg);
+    void requestSimStart();
 
 public slots:
     void refresh();
     void onMapClicked(double lat, double lon, double alt);
+    void toggleWaypointMode();
+    void onStartAircraft();
+    void onStopAircraft();
 
 private slots:
-    void toggleWaypointMode();
     void onNewRoute();
     void onAssignRoute();
     void onClearRoute();
-    void onStartAircraft();
-    void onStopAircraft();
 
 private:
     void updateButtonStates();

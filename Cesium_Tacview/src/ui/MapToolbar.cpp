@@ -3,6 +3,7 @@
 #include "bridge/CesiumBridge.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QFrame>
 #include <QGraphicsDropShadowEffect>
 
 MapToolbar::MapToolbar(AppState *appState, CesiumBridge *bridge, QWidget *parent)
@@ -13,26 +14,26 @@ MapToolbar::MapToolbar(AppState *appState, CesiumBridge *bridge, QWidget *parent
     // ── Dark semi-transparent style ──
     setStyleSheet(QStringLiteral(
         "MapToolbar {"
-        "  background: rgba(20, 25, 35, 220);"
-        "  border-radius: 8px;"
-        "  border: 1px solid rgba(100, 120, 160, 80);"
+        "  background: rgba(15, 20, 30, 230);"
+        "  border-radius: 10px;"
+        "  border: 1px solid rgba(80, 100, 140, 100);"
         "}"
         "QPushButton {"
         "  background: rgba(50, 60, 80, 200);"
         "  color: #ddd;"
         "  border: 1px solid rgba(120, 140, 180, 100);"
-        "  border-radius: 4px;"
-        "  padding: 6px 12px;"
-        "  font-size: 12px;"
+        "  border-radius: 5px;"
+        "  padding: 7px 14px;"
+        "  font-size: 13px;"
         "  font-weight: bold;"
-        "  min-width: 70px;"
+        "  min-width: 60px;"
         "}"
         "QPushButton:hover {"
         "  background: rgba(60, 80, 120, 220);"
         "  color: #fff;"
         "}"
         "QPushButton:checked {"
-        "  background: rgba(40, 120, 200, 220);"
+        "  background: rgba(40, 120, 200, 230);"
         "  color: #fff;"
         "  border: 2px solid #4a9eff;"
         "}"
@@ -41,84 +42,113 @@ MapToolbar::MapToolbar(AppState *appState, CesiumBridge *bridge, QWidget *parent
         "}"
         "QPushButton#startBtn {"
         "  background: rgba(20, 120, 60, 200);"
+        "  font-size: 14px;"
+        "  min-width: 80px;"
         "}"
         "QPushButton#startBtn:hover {"
         "  background: rgba(30, 150, 80, 230);"
         "}"
         "QPushButton#stopBtn {"
         "  background: rgba(150, 40, 40, 200);"
+        "  font-size: 14px;"
+        "  min-width: 80px;"
         "}"
         "QPushButton#stopBtn:hover {"
         "  background: rgba(180, 50, 50, 230);"
         "}"
         "QComboBox {"
         "  background: rgba(40, 50, 70, 200);"
-        "  color: #ddd;"
+        "  color: #eee;"
         "  border: 1px solid rgba(120, 140, 180, 100);"
-        "  border-radius: 4px;"
-        "  padding: 4px 8px;"
-        "  font-size: 11px;"
-        "  min-width: 100px;"
+        "  border-radius: 5px;"
+        "  padding: 5px 10px;"
+        "  font-size: 13px;"
+        "  min-width: 140px;"
+        "  min-height: 24px;"
         "}"
         "QComboBox::drop-down {"
         "  border: none;"
-        "  width: 16px;"
+        "  width: 20px;"
         "}"
         "QComboBox QAbstractItemView {"
-        "  background: rgba(30, 35, 50, 240);"
-        "  color: #ddd;"
+        "  background: rgba(25, 30, 45, 245);"
+        "  color: #eee;"
         "  selection-background-color: rgba(40, 120, 200, 200);"
+        "  font-size: 13px;"
+        "  padding: 2px;"
         "}"
         "QLabel {"
-        "  color: #aab;"
-        "  font-size: 11px;"
+        "  color: #99a;"
+        "  font-size: 12px;"
         "}"
         "QLabel#statusLabel {"
         "  color: #8cf;"
         "  font-size: 12px;"
         "  font-weight: bold;"
         "}"
+        "QFrame#separator {"
+        "  background: rgba(100, 120, 160, 80);"
+        "  max-width: 1px;"
+        "  min-height: 24px;"
+        "}"
     ));
 
     auto *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(10, 8, 10, 8);
-    mainLayout->setSpacing(6);
+    mainLayout->setContentsMargins(12, 10, 12, 8);
+    mainLayout->setSpacing(8);
 
-    // ── Row 1: Route/Aircraft selectors ──
+    // ── Row 1: Route/Aircraft selectors + WP Mode ──
     auto *selectorRow = new QHBoxLayout;
-    selectorRow->setSpacing(6);
+    selectorRow->setSpacing(8);
+
+    m_wpModeBtn = new QPushButton(QStringLiteral("📍 WP Mode"));
+    m_wpModeBtn->setCheckable(true);
+    m_wpModeBtn->setToolTip(tr("Toggle: click map to add waypoints"));
+
+    auto *sep1 = new QFrame;
+    sep1->setObjectName(QStringLiteral("separator"));
+    sep1->setFrameShape(QFrame::VLine);
 
     auto *routeLabel = new QLabel(QStringLiteral("Route:"));
     m_routeCombo = new QComboBox;
     m_routeCombo->setToolTip(tr("Select active route"));
+    m_routeCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+    m_newRouteBtn = new QPushButton(QStringLiteral("+ Route"));
+    m_newRouteBtn->setToolTip(tr("Create a new empty route"));
+
+    auto *sep2 = new QFrame;
+    sep2->setObjectName(QStringLiteral("separator"));
+    sep2->setFrameShape(QFrame::VLine);
 
     auto *acLabel = new QLabel(QStringLiteral("Aircraft:"));
     m_aircraftCombo = new QComboBox;
     m_aircraftCombo->setToolTip(tr("Select aircraft"));
+    m_aircraftCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
+    selectorRow->addWidget(m_wpModeBtn);
+    selectorRow->addWidget(sep1);
     selectorRow->addWidget(routeLabel);
     selectorRow->addWidget(m_routeCombo);
-    selectorRow->addSpacing(10);
+    selectorRow->addWidget(m_newRouteBtn);
+    selectorRow->addWidget(sep2);
     selectorRow->addWidget(acLabel);
     selectorRow->addWidget(m_aircraftCombo);
     mainLayout->addLayout(selectorRow);
 
     // ── Row 2: Action buttons ──
     auto *actionRow = new QHBoxLayout;
-    actionRow->setSpacing(6);
-
-    m_wpModeBtn = new QPushButton(QStringLiteral("📍 WP Mode"));
-    m_wpModeBtn->setCheckable(true);
-    m_wpModeBtn->setToolTip(tr("Toggle: click map to add waypoints"));
-
-    m_newRouteBtn = new QPushButton(QStringLiteral("+ Route"));
-    m_newRouteBtn->setToolTip(tr("Create a new empty route"));
+    actionRow->setSpacing(8);
 
     m_assignBtn = new QPushButton(QStringLiteral("⇒ Assign"));
     m_assignBtn->setToolTip(tr("Assign selected route to selected aircraft"));
 
     m_clearBtn = new QPushButton(QStringLiteral("✕ Clear"));
     m_clearBtn->setToolTip(tr("Remove all waypoints from current route"));
+
+    auto *sep3 = new QFrame;
+    sep3->setObjectName(QStringLiteral("separator"));
+    sep3->setFrameShape(QFrame::VLine);
 
     m_startBtn = new QPushButton(QStringLiteral("▶ Fly"));
     m_startBtn->setObjectName(QStringLiteral("startBtn"));
@@ -128,18 +158,19 @@ MapToolbar::MapToolbar(AppState *appState, CesiumBridge *bridge, QWidget *parent
     m_stopBtn->setObjectName(QStringLiteral("stopBtn"));
     m_stopBtn->setToolTip(tr("Stop aircraft (IDLE)"));
 
-    actionRow->addWidget(m_wpModeBtn);
-    actionRow->addWidget(m_newRouteBtn);
+    // Status at right
+    m_statusLabel = new QLabel;
+    m_statusLabel->setObjectName(QStringLiteral("statusLabel"));
+    m_statusLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
     actionRow->addWidget(m_assignBtn);
     actionRow->addWidget(m_clearBtn);
+    actionRow->addWidget(sep3);
     actionRow->addWidget(m_startBtn);
     actionRow->addWidget(m_stopBtn);
+    actionRow->addSpacing(12);
+    actionRow->addWidget(m_statusLabel);
     mainLayout->addLayout(actionRow);
-
-    // ── Row 3: Status ──
-    m_statusLabel = new QLabel(QStringLiteral("Click map to add waypoints"));
-    m_statusLabel->setObjectName(QStringLiteral("statusLabel"));
-    mainLayout->addWidget(m_statusLabel);
 
     // ── Drop shadow ──
     auto *shadow = new QGraphicsDropShadowEffect(this);
@@ -168,7 +199,7 @@ MapToolbar::MapToolbar(AppState *appState, CesiumBridge *bridge, QWidget *parent
     connect(appState->selectionManager(), &SelectionManager::selectionChanged,
             this, [this](const QString &, SelectionType) { refresh(); });
 
-    setFixedHeight(110);
+    setFixedHeight(95);
 }
 
 void MapToolbar::refresh()
@@ -396,6 +427,9 @@ void MapToolbar::onStartAircraft()
     ac->controlMode = ControlMode::AUTOPILOT;
     ac->targetSpeed = 100.0; // cruise speed
     m_bridge->pushFullSync();
+
+    // Ensure simulation engine is running
+    emit requestSimStart();
 
     emit logMessage(QStringLiteral("▶ %1 flying on %2").arg(ac->callSign, ac->currentRouteId));
     updateButtonStates();

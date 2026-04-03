@@ -8,6 +8,7 @@ class CesiumBridge;
 class SimulationEngine;
 class InputManager;
 class MapWindow;
+class ViteProcess;
 class AircraftListPanel;
 class AircraftInspector;
 class RouteEditorPanel;
@@ -42,12 +43,15 @@ private:
     void setupConnections();
     void setupDualScreen();
     void createDemonstrationScenario();
+    void onViteReady();
+    void onViteError(const QString &msg);
 
     // Core
     AppState *m_appState;
     CesiumBridge *m_bridge;
     SimulationEngine *m_simEngine;
     InputManager *m_inputManager;
+    ViteProcess *m_viteProcess;
 
     // Map (separate window on second screen)
     MapWindow *m_mapWindow;
