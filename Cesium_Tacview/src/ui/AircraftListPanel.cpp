@@ -73,7 +73,8 @@ void AircraftListPanel::onItemClicked(QTreeWidgetItem *item, int /*column*/)
 
     // Fly camera to the selected aircraft
     const AircraftState *ac = m_appState->aircraftManager()->aircraft(id);
-    if (ac) {
+    if (ac)
+    {
         QJsonObject flyPayload;
         flyPayload[QStringLiteral("lat")] = ac->lat;
         flyPayload[QStringLiteral("lon")] = ac->lon;

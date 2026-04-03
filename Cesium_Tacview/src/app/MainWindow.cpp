@@ -159,9 +159,8 @@ void MainWindow::setupConnections()
     connect(m_bridge, &CesiumBridge::logMessage, m_logPanel, &SimulationLogPanel::appendLog);
     connect(m_bridge, &CesiumBridge::logMessage, m_cmdHistoryPanel, &CommandHistoryPanel::addCommand);
 
-    connect(m_bridge, &CesiumBridge::entityClicked, this, [this](const QString &id, const QString &) {
-        m_logPanel->appendLog(QStringLiteral("Entity clicked: %1").arg(id));
-    });
+    connect(m_bridge, &CesiumBridge::entityClicked, this, [this](const QString &id, const QString &)
+            { m_logPanel->appendLog(QStringLiteral("Entity clicked: %1").arg(id)); });
 
     // Map click → add waypoint to active route
     connect(m_bridge, &CesiumBridge::mapClicked, this, &MainWindow::onMapClicked);
@@ -186,17 +185,18 @@ void MainWindow::setupConnections()
     connect(m_viteProcess, &ViteProcess::logMessage, m_logPanel, &SimulationLogPanel::appendLog);
 
     // MapToolbar "Fly" pressed → ensure simulation engine is running
-    connect(m_mapWindow->toolbar(), &MapToolbar::requestSimStart, this, [this]() {
+    connect(m_mapWindow->toolbar(), &MapToolbar::requestSimStart, this, [this]()
+            {
         if (!m_simEngine->isRunning())
-            m_simEngine->start();
-    });
+            m_simEngine->start(); });
 }
 
 void MainWindow::setupDualScreen()
 {
     const QList<QScreen *> screens = QApplication::screens();
 
-    if (screens.size() >= 2) {
+    if (screens.size() >= 2)
+    {
         // Two monitors: MainWindow on screen 0, MapWindow on screen 1
         const QRect screen0 = screens.at(0)->availableGeometry();
         setGeometry(screen0);
@@ -206,7 +206,9 @@ void MainWindow::setupDualScreen()
 
         m_logPanel->appendLog(QStringLiteral("Dual-screen: Control on %1, Map on %2")
                                   .arg(screens.at(0)->name(), screens.at(1)->name()));
-    } else {
+    }
+    else
+    {
         // Single monitor: side by side (60/40 split)
         const QRect avail = screens.at(0)->availableGeometry();
         const int splitX = avail.width() * 2 / 5;

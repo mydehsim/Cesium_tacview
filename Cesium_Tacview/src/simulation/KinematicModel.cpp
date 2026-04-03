@@ -16,8 +16,10 @@ void KinematicModel::update(AircraftState &ac, double dt)
 
     double headingDiff = ac.targetHeading - ac.heading;
     // Normalize to [-180, 180]
-    while (headingDiff > 180.0)  headingDiff -= 360.0;
-    while (headingDiff < -180.0) headingDiff += 360.0;
+    while (headingDiff > 180.0)
+        headingDiff -= 360.0;
+    while (headingDiff < -180.0)
+        headingDiff += 360.0;
 
     // Calculate maximum turn rate from max bank angle at current speed
     double maxTurnRateDeg;
@@ -48,8 +50,10 @@ void KinematicModel::update(AircraftState &ac, double dt)
     }
 
     // Normalize heading to [0, 360)
-    while (ac.heading < 0)    ac.heading += 360.0;
-    while (ac.heading >= 360) ac.heading -= 360.0;
+    while (ac.heading < 0)
+        ac.heading += 360.0;
+    while (ac.heading >= 360)
+        ac.heading -= 360.0;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Bank angle (roll) from actual turn rate
@@ -127,8 +131,10 @@ void KinematicModel::update(AircraftState &ac, double dt)
     ac.lon += dLon * RAD_TO_DEG;
 
     ac.lat = std::clamp(ac.lat, -90.0, 90.0);
-    while (ac.lon > 180.0)  ac.lon -= 360.0;
-    while (ac.lon < -180.0) ac.lon += 360.0;
+    while (ac.lon > 180.0)
+        ac.lon -= 360.0;
+    while (ac.lon < -180.0)
+        ac.lon += 360.0;
 
     // Sync yaw = heading
     ac.yaw = ac.heading;

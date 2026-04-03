@@ -69,8 +69,7 @@ void MapWindow::setupUi()
     profile->setHttpCacheType(QWebEngineProfile::DiskHttpCache);
     profile->setHttpCacheMaximumSize(1024 * 1024 * 1024);
     profile->setPersistentStoragePath(
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-        + QStringLiteral("/webengine"));
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/webengine"));
 
     // Log panel (small, at bottom of map window)
     m_logPanel = new SimulationLogPanel(this);
@@ -92,13 +91,13 @@ void MapWindow::setupUi()
     // StatusBar with FPS and bridge status
     statusBar()->showMessage(QStringLiteral("Waiting for Vite dev server..."));
 
-    connect(m_webView, &QWebEngineView::loadFinished, this, [this](bool ok) {
+    connect(m_webView, &QWebEngineView::loadFinished, this, [this](bool ok)
+            {
         if (ok) {
             statusBar()->showMessage(QStringLiteral("Cesium loaded — Waiting for viewer init..."));
         } else {
             statusBar()->showMessage(QStringLiteral("ERROR: Failed to load Cesium page"));
-        }
-    });
+        } });
 
     // ── Floating Map Toolbar (overlaid on top of web view) ──
     m_toolbar = new MapToolbar(m_appState, m_bridge, m_webView);
@@ -138,12 +137,14 @@ void MapWindow::resizeEvent(QResizeEvent *event)
 
 void MapWindow::keyPressEvent(QKeyEvent *event)
 {
-    if (!m_toolbar) {
+    if (!m_toolbar)
+    {
         QMainWindow::keyPressEvent(event);
         return;
     }
 
-    switch (event->key()) {
+    switch (event->key())
+    {
     case Qt::Key_W:
         if (!event->isAutoRepeat())
             m_toolbar->toggleWaypointMode();
@@ -165,7 +166,8 @@ void MapWindow::keyPressEvent(QKeyEvent *event)
 
 void MapWindow::repositionToolbar()
 {
-    if (!m_toolbar) return;
+    if (!m_toolbar)
+        return;
     // Center toolbar at top of the web view
     int toolbarWidth = qMin(m_webView->width() - 40, 750);
     m_toolbar->setFixedWidth(toolbarWidth);

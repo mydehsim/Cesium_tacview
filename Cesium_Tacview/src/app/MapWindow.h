@@ -21,8 +21,8 @@ public:
     MapToolbar *toolbar() { return m_toolbar; }
 
     void moveToScreen(int screenIndex);
-    void loadCesium();   // Call after Vite dev server is ready
-    void showLoading();  // Show waiting message
+    void loadCesium();  // Call after Vite dev server is ready
+    void showLoading(); // Show waiting message
 
 signals:
     void logMessage(const QString &msg);

@@ -83,11 +83,13 @@ void RouteEditorPanel::refresh()
 void RouteEditorPanel::onRouteSelected(int index)
 {
     m_waypointList->clear();
-    if (index < 0) return;
+    if (index < 0)
+        return;
 
     QString routeId = m_routeCombo->currentData().toString();
     const RouteState *route = m_appState->routeManager()->route(routeId);
-    if (!route) return;
+    if (!route)
+        return;
 
     // Update loop button
     m_loopBtn->blockSignals(true);
@@ -121,7 +123,8 @@ void RouteEditorPanel::onNewRoute()
     // Select the new route
     refresh();
     int idx = m_routeCombo->findData(route.id);
-    if (idx >= 0) m_routeCombo->setCurrentIndex(idx);
+    if (idx >= 0)
+        m_routeCombo->setCurrentIndex(idx);
 }
 
 void RouteEditorPanel::onAddWaypoint()
@@ -153,7 +156,8 @@ void RouteEditorPanel::onRemoveWaypoint()
 void RouteEditorPanel::onLoopToggled(bool checked)
 {
     QString routeId = m_routeCombo->currentData().toString();
-    if (routeId.isEmpty()) return;
+    if (routeId.isEmpty())
+        return;
 
     RouteState *route = m_appState->routeManager()->route(routeId);
     if (route)
