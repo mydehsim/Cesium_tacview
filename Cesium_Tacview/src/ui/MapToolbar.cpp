@@ -90,8 +90,7 @@ MapToolbar::MapToolbar(AppState *appState, CesiumBridge *bridge, QWidget *parent
         "  background: rgba(100, 120, 160, 80);"
         "  max-width: 1px;"
         "  min-height: 24px;"
-        "}"
-    ));
+        "}"));
 
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(12, 10, 12, 8);
@@ -189,15 +188,18 @@ MapToolbar::MapToolbar(AppState *appState, CesiumBridge *bridge, QWidget *parent
 
     // Sync combos when aircraft/route change
     connect(m_aircraftCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int) { updateButtonStates(); });
+            this, [this](int)
+            { updateButtonStates(); });
     connect(m_routeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int) { updateButtonStates(); });
+            this, [this](int)
+            { updateButtonStates(); });
 
     // Auto-refresh on state changes
     connect(appState->aircraftManager(), &AircraftManager::stateChanged, this, &MapToolbar::refresh);
     connect(appState->routeManager(), &RouteManager::stateChanged, this, &MapToolbar::refresh);
     connect(appState->selectionManager(), &SelectionManager::selectionChanged,
-            this, [this](const QString &, SelectionType) { refresh(); });
+            this, [this](const QString &, SelectionType)
+            { refresh(); });
 
     setFixedHeight(95);
 }
@@ -218,7 +220,8 @@ void MapToolbar::refresh()
         m_routeCombo->addItem(label, id);
     }
     int ri = m_routeCombo->findData(prevRoute);
-    if (ri >= 0) m_routeCombo->setCurrentIndex(ri);
+    if (ri >= 0)
+        m_routeCombo->setCurrentIndex(ri);
     m_routeCombo->blockSignals(false);
 
     // Populate aircraft
@@ -231,9 +234,11 @@ void MapToolbar::refresh()
     }
     // Auto-select currently selected aircraft
     QString sel = m_appState->selectionManager()->selectedEntityId();
-    if (!sel.isEmpty()) prevAc = sel;
+    if (!sel.isEmpty())
+        prevAc = sel;
     int ai = m_aircraftCombo->findData(prevAc);
-    if (ai >= 0) m_aircraftCombo->setCurrentIndex(ai);
+    if (ai >= 0)
+        m_aircraftCombo->setCurrentIndex(ai);
     m_aircraftCombo->blockSignals(false);
 
     updateButtonStates();
@@ -257,7 +262,8 @@ void MapToolbar::updateButtonStates()
         const RouteState *rt = m_appState->routeManager()->route(routeId);
         int n = rt ? rt->waypoints.size() : 0;
         m_statusLabel->setText(QStringLiteral("📍 WP Mode ON — %1 (%2 waypoints) — Click map to add")
-                                   .arg(routeId).arg(n));
+                                   .arg(routeId)
+                                   .arg(n));
     }
     else if (m_waypointMode)
     {
@@ -290,7 +296,8 @@ void MapToolbar::toggleWaypointMode()
 QString MapToolbar::ensureActiveRoute()
 {
     QString routeId = m_routeCombo->currentData().toString();
-    if (!routeId.isEmpty()) return routeId;
+    if (!routeId.isEmpty())
+        return routeId;
 
     // Try selected aircraft's route
     QString acId = m_aircraftCombo->currentData().toString();
@@ -301,7 +308,8 @@ QString MapToolbar::ensureActiveRoute()
         {
             routeId = ac->currentRouteId;
             int idx = m_routeCombo->findData(routeId);
-            if (idx >= 0) m_routeCombo->setCurrentIndex(idx);
+            if (idx >= 0)
+                m_routeCombo->setCurrentIndex(idx);
             return routeId;
         }
     }
@@ -313,10 +321,12 @@ QString MapToolbar::ensureActiveRoute()
 
 void MapToolbar::onMapClicked(double lat, double lon, double alt)
 {
-    if (!m_waypointMode) return;
+    if (!m_waypointMode)
+        return;
 
     QString routeId = ensureActiveRoute();
-    if (routeId.isEmpty()) return;
+    if (routeId.isEmpty())
+        return;
 
     double wpAlt = (alt < 100.0) ? 5000.0 : alt;
 
@@ -350,7 +360,8 @@ void MapToolbar::onNewRoute()
     // Select the new route in combo
     refresh();
     int idx = m_routeCombo->findData(route.id);
-    if (idx >= 0) m_routeCombo->setCurrentIndex(idx);
+    if (idx >= 0)
+        m_routeCombo->setCurrentIndex(idx);
 
     emit logMessage(QStringLiteral("Created new route: %1").arg(route.id));
 }
@@ -359,10 +370,12 @@ void MapToolbar::onAssignRoute()
 {
     QString routeId = m_routeCombo->currentData().toString();
     QString acId = m_aircraftCombo->currentData().toString();
-    if (routeId.isEmpty() || acId.isEmpty()) return;
+    if (routeId.isEmpty() || acId.isEmpty())
+        return;
 
     AircraftState *ac = m_appState->aircraftManager()->aircraft(acId);
-    if (!ac) return;
+    if (!ac)
+        return;
 
     ac->currentRouteId = routeId;
 
@@ -381,10 +394,12 @@ void MapToolbar::onAssignRoute()
 void MapToolbar::onClearRoute()
 {
     QString routeId = m_routeCombo->currentData().toString();
-    if (routeId.isEmpty()) return;
+    if (routeId.isEmpty())
+        return;
 
     RouteState *route = m_appState->routeManager()->route(routeId);
-    if (!route) return;
+    if (!route)
+        return;
 
     route->waypoints.clear();
     route->currentWaypointIndex = 0;
@@ -397,10 +412,12 @@ void MapToolbar::onClearRoute()
 void MapToolbar::onStartAircraft()
 {
     QString acId = m_aircraftCombo->currentData().toString();
-    if (acId.isEmpty()) return;
+    if (acId.isEmpty())
+        return;
 
     AircraftState *ac = m_appState->aircraftManager()->aircraft(acId);
-    if (!ac) return;
+    if (!ac)
+        return;
 
     // If no route assigned, assign the currently selected one
     if (ac->currentRouteId.isEmpty())
@@ -422,7 +439,8 @@ void MapToolbar::onStartAircraft()
 
     // Reset waypoint index to start
     RouteState *route = m_appState->routeManager()->route(ac->currentRouteId);
-    if (route) route->currentWaypointIndex = 0;
+    if (route)
+        route->currentWaypointIndex = 0;
 
     ac->controlMode = ControlMode::AUTOPILOT;
     ac->targetSpeed = 100.0; // cruise speed
@@ -438,10 +456,12 @@ void MapToolbar::onStartAircraft()
 void MapToolbar::onStopAircraft()
 {
     QString acId = m_aircraftCombo->currentData().toString();
-    if (acId.isEmpty()) return;
+    if (acId.isEmpty())
+        return;
 
     AircraftState *ac = m_appState->aircraftManager()->aircraft(acId);
-    if (!ac) return;
+    if (!ac)
+        return;
 
     ac->controlMode = ControlMode::IDLE;
     ac->targetSpeed = 0;

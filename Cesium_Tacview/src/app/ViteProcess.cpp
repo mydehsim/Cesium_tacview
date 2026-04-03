@@ -21,14 +21,16 @@ ViteProcess::~ViteProcess()
 
 void ViteProcess::start()
 {
-    if (m_ready) return;
+    if (m_ready)
+        return;
 
     // First check if Vite is already running (user may have started it manually)
     m_pollAttempts = 0;
     pollServer();
 
     // If already running, pollServer will detect it. Otherwise, start the process.
-    QTimer::singleShot(800, this, [this]() {
+    QTimer::singleShot(800, this, [this]()
+                       {
         if (m_ready) return; // Already detected running server
 
         if (m_process) return; // Already starting
@@ -57,16 +59,17 @@ void ViteProcess::start()
         emit logMessage(QStringLiteral("[ViteProcess] Starting npm run dev in %1").arg(m_webDir));
 
         // Start polling every 500ms
-        m_pollTimer.start(500);
-    });
+        m_pollTimer.start(500); });
 }
 
 void ViteProcess::stop()
 {
     m_pollTimer.stop();
 
-    if (m_process) {
-        if (m_process->state() != QProcess::NotRunning) {
+    if (m_process)
+    {
+        if (m_process->state() != QProcess::NotRunning)
+        {
 #ifdef Q_OS_WIN
             // On Windows, QProcess::kill won't kill child node processes.
             // Use taskkill /T to terminate the whole process tree.
@@ -91,7 +94,8 @@ void ViteProcess::pollServer()
 {
     m_pollAttempts++;
 
-    if (m_pollAttempts > MAX_POLL_ATTEMPTS) {
+    if (m_pollAttempts > MAX_POLL_ATTEMPTS)
+    {
         m_pollTimer.stop();
         emit errorOccurred(QStringLiteral("Vite dev server did not start within 30 seconds"));
         return;
@@ -106,9 +110,11 @@ void ViteProcess::onPollReply(QNetworkReply *reply)
 {
     reply->deleteLater();
 
-    if (m_ready) return;
+    if (m_ready)
+        return;
 
-    if (reply->error() == QNetworkReply::NoError) {
+    if (reply->error() == QNetworkReply::NoError)
+    {
         m_ready = true;
         m_pollTimer.stop();
         emit logMessage(QStringLiteral("[ViteProcess] Server ready at localhost:5173"));
@@ -119,7 +125,8 @@ void ViteProcess::onPollReply(QNetworkReply *reply)
 void ViteProcess::onProcessError(QProcess::ProcessError error)
 {
     QString msg;
-    switch (error) {
+    switch (error)
+    {
     case QProcess::FailedToStart:
         msg = QStringLiteral("Failed to start npm — is Node.js installed and in PATH?");
         break;

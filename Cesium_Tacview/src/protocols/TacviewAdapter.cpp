@@ -143,11 +143,13 @@ QByteArray TacviewAdapter::serializeOutgoing(const QJsonObject &stateUpdate)
 
     xml.writeStartElement(QStringLiteral("Track"));
 
-    auto writeEl = [&](const QString &tag, const QString &val) {
+    auto writeEl = [&](const QString &tag, const QString &val)
+    {
         if (!val.isEmpty())
             xml.writeTextElement(tag, val);
     };
-    auto writeDbl = [&](const QString &tag, double val) {
+    auto writeDbl = [&](const QString &tag, double val)
+    {
         xml.writeTextElement(tag, QString::number(val, 'f', 6));
     };
 
