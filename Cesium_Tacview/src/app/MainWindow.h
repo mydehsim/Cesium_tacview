@@ -14,6 +14,11 @@ class AircraftInspector;
 class RouteEditorPanel;
 class SimulationLogPanel;
 class CommandHistoryPanel;
+class PlaybackControlPanel;
+class TelemetryPanel;
+class ScenarioManager;
+class TrackRecorder;
+class PlaybackEngine;
 
 class MainWindow : public QMainWindow
 {
@@ -37,6 +42,10 @@ private slots:
     void onCreateAircraft();
     void onDeleteAircraft(const QString &id);
     void onMapClicked(double lat, double lon, double alt);
+    void onSaveScenario();
+    void onLoadScenario();
+    void onExportRecording();
+    void onImportRecording();
 
 private:
     void setupUi();
@@ -52,6 +61,7 @@ private:
     SimulationEngine *m_simEngine;
     InputManager *m_inputManager;
     ViteProcess *m_viteProcess;
+    ScenarioManager *m_scenarioManager;
 
     // Map (separate window on second screen)
     MapWindow *m_mapWindow;
@@ -62,6 +72,8 @@ private:
     RouteEditorPanel *m_routePanel;
     SimulationLogPanel *m_logPanel;
     CommandHistoryPanel *m_cmdHistoryPanel;
+    PlaybackControlPanel *m_playbackPanel;
+    TelemetryPanel *m_telemetryPanel;
 
     int m_nextAircraftId = 1;
 };

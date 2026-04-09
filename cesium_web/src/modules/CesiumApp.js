@@ -16,13 +16,13 @@
 import {
   Cartesian3,
   Math as CesiumMath,
-  Terrain,
   Viewer,
-  ImageryLayer,
-  IonWorldImageryStyle,
+  Ion,
   JulianDate,
   Matrix4,
-  Ion,
+  UrlTemplateImageryProvider,
+  EllipsoidTerrainProvider,
+  WebMercatorTilingScheme,
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../style.css";
@@ -33,25 +33,29 @@ export class CesiumApp {
   }
 
   async init(containerId = "cesiumContainer") {
-    // Cesium ion access token
-    Ion.defaultAccessToken =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MzA4Mjc0MS1jY2M0LTRlYmQtYjc5My01OGQ4Yzk0OTMzMDAiLCJpZCI6MzU2NTM4LCJpYXQiOjE3NjIzMjU3NzB9.GnAL6LKzbzx6QcW8vprAwdkMHsWraP46l30QiQYduOU";
+    // Offline mode — suppress Cesium Ion token warning
+    Ion.defaultAccessToken = undefined;
 
-    // Create viewer with terrain — minimal config for performance
+    // Create viewer with flat ellipsoid terrain (no online terrain)
     this.viewer = new Viewer(containerId, {
-      terrain: Terrain.fromWorldTerrain(),
+      terrainProvider: new EllipsoidTerrainProvider(),
+      baseLayer: false, // we add our own imagery below
       infoBox: false,
       shadows: false,
       shouldAnimate: true,
       requestRenderMode: true,
       maximumRenderTimeChange: 0.0, // render every frame when animating
+      creditContainer: document.createElement("div"), // hide credit display (offline mode)
     });
 
-    // Aerial imagery with labels
-    const mapLayer = ImageryLayer.fromWorldImagery({
-      style: IonWorldImageryStyle.AERIAL_WITH_LABELS,
+    // Offline tile imagery from local files (downloaded via scripts/download_tiles.py)
+    const offlineImagery = new UrlTemplateImageryProvider({
+      url: "/tiles/{z}/{x}/{y}.jpg",
+      tilingScheme: new WebMercatorTilingScheme(),
+      minimumLevel: 0,
+      maximumLevel: 16,
     });
-    this.viewer.imageryLayers.add(mapLayer);
+    this.viewer.imageryLayers.addImageryProvider(offlineImagery);
 
     // ===== PERFORMANCE TUNING =====
     const scene = this.viewer.scene;
@@ -91,7 +95,7 @@ export class CesiumApp {
     // Show FPS counter in debug builds
     scene.debugShowFramesPerSecond = true;
 
-    console.log("[CesiumApp] Viewer initialized (Qt optimized — no OSM buildings, reduced terrain LOD)");
+    console.log("[CesiumApp] Viewer initialized (OFFLINE mode — local tiles, no Ion)");
     return this.viewer;
   }
 

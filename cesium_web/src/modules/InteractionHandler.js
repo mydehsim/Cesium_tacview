@@ -39,16 +39,28 @@ export class InteractionHandler {
     // Left click — entity selection or map click
     this.handler.setInputAction((click) => {
       const pickedObject = this.viewer.scene.pick(click.position);
+      const isCtrl = click.ctrlKey === true;
 
       if (defined(pickedObject) && defined(pickedObject.id)) {
         const entity = pickedObject.id;
         const entityId = entity.id || "";
 
+        // Determine event type based on Ctrl key
+        const eventType = isCtrl ? "EVT_ENTITY_CTRL_CLICKED" : "EVT_ENTITY_CLICKED";
+
         let entityType = "unknown";
         if (entityId.startsWith("aircraft_")) {
           entityType = "aircraft";
           const id = entityId.replace("aircraft_", "");
-          this.bridge.sendEvent("EVT_ENTITY_CLICKED", {
+          this.bridge.sendEvent(eventType, {
+            entityId: id,
+            entityType: entityType,
+          });
+        } else if (entityId.startsWith("label_")) {
+          // Clicking label selects the aircraft
+          entityType = "aircraft";
+          const id = entityId.replace("label_", "");
+          this.bridge.sendEvent(eventType, {
             entityId: id,
             entityType: entityType,
           });

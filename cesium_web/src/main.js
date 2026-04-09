@@ -2,11 +2,7 @@ import {
   Cartesian3,
   Cartesian2,
   Math as CesiumMath,
-  Terrain,
   Viewer,
-  createOsmBuildingsAsync,
-  ImageryLayer,
-  IonWorldImageryStyle,
   JulianDate,
   HeadingPitchRoll,
   Transforms,
@@ -18,7 +14,6 @@ import {
   NearFarScalar,
   LabelStyle,
   Color,
-  Ion,
   defined,
   ScreenSpaceEventType,
   ScreenSpaceEventHandler,
@@ -27,6 +22,9 @@ import {
   Cartographic,
   Ellipsoid,
   EllipsoidGeodesic,
+  UrlTemplateImageryProvider,
+  EllipsoidTerrainProvider,
+  WebMercatorTilingScheme,
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "./style.css";
@@ -38,27 +36,23 @@ import XmlBuilder from "./modules/tcp/XmlBuilder.js";
 import ControlPanel from "./modules/ui/ControlPanel.js";
 import TrackVisualizer from "./modules/ui/TrackVisualizer.js";
 
-// Step 1.2: Add your Cesium ion access token
-// See: https://cesium.com/learn/ion/cesium-ion-access-tokens/
-// See: https://cesium.com/platform/cesium-ion/pricing/#frequently-asked-questions
-Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MzA4Mjc0MS1jY2M0LTRlYmQtYjc5My01OGQ4Yzk0OTMzMDAiLCJpZCI6MzU2NTM4LCJpYXQiOjE3NjIzMjU3NzB9.GnAL6LKzbzx6QcW8vprAwdkMHsWraP46l30QiQYduOU";
+// Offline mode — no Cesium Ion token needed
 
-// Step 1.3: Initialize the Cesium Viewer in the HTML element with the
-// `cesiumContainer` ID and visualize terrain
+// Initialize viewer with offline tiles and flat ellipsoid terrain
 const viewer = new Viewer("cesiumContainer", {
-  terrain: Terrain.fromWorldTerrain(),
+  terrainProvider: new EllipsoidTerrainProvider(),
+  baseLayer: false,
   infoBox: false,
 });
 
-// Step 1.4: Add aerial imagery later with labels
-const mapLayer = ImageryLayer.fromWorldImagery({
-  style: IonWorldImageryStyle.AERIAL_WITH_LABELS,
+// Offline tile imagery from local files
+const offlineImagery = new UrlTemplateImageryProvider({
+  url: "/tiles/{z}/{x}/{y}.jpg",
+  tilingScheme: new WebMercatorTilingScheme(),
+  minimumLevel: 0,
+  maximumLevel: 16,
 });
-viewer.imageryLayers.add(mapLayer);
-
-// Step 1.5: Add Cesium OSM Buildings, a global 3D buildings layer.
-const buildingTileset = await createOsmBuildingsAsync();
-viewer.scene.primitives.add(buildingTileset);
+viewer.imageryLayers.addImageryProvider(offlineImagery);
 
 // ============================================================================
 // TCP CONNECTION & TRACK VISUALIZATION SYSTEM

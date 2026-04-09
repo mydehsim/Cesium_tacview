@@ -6,6 +6,17 @@
  * - Renders waypoints, routes (polylines), labels, trails
  * - Highlights selected entity
  * - Does NOT hold any authoritative state — pure render slave
+ *
+ * ORIENTATION SYSTEM:
+ * - Heading: degrees [0,360) true heading, 0=North, clockwise
+ * - Pitch: degrees, positive = nose up (flight path angle)
+ * - Roll: degrees, positive = right wing down (bank angle)
+ * - CesiumJS HeadingPitchRoll uses same conventions (radians)
+ *
+ * INTERPOLATION:
+ * - Qt sends state at 20Hz, CesiumJS renders at 60fps
+ * - Dead-reckoning interpolation fills the gaps for smooth animation
+ * - Uses great-circle destination formula for position extrapolation
  */
 
 import {
@@ -22,6 +33,11 @@ import {
   Quaternion,
 } from "cesium";
 
+// Earth radius for dead-reckoning calculations
+const EARTH_RADIUS = 6371000.0;
+const DEG_TO_RAD = Math.PI / 180.0;
+const RAD_TO_DEG = 180.0 / Math.PI;
+
 export class EntityRenderer {
   constructor(viewer) {
     this.viewer = viewer;
@@ -36,6 +52,26 @@ export class EntityRenderer {
       Helicopter: "/models/helicopter.glb",
       Drone: "/models/autopilot_aircraft__drone.glb",
     };
+
+    // ═══════════════════════════════════════════════════════════
+    // Model heading offsets (radians)
+    // Many glTF models have non-standard forward directions.
+    // Adjust per model type if the visual orientation is wrong.
+    //   0    = model forward = CesiumJS forward (standard glTF)
+    //  +90°  = model faces +X in glTF, needs rotation to face -Z
+    //  -90°  = model faces -X
+    //  180°  = model faces +Z
+    // ═══════════════════════════════════════════════════════════
+    this.modelHeadingOffsets = {
+      Fighter: CesiumMath.toRadians(0),
+      Transport: CesiumMath.toRadians(0),
+      Helicopter: CesiumMath.toRadians(0),
+      Drone: CesiumMath.toRadians(0),
+    };
+
+    // Register pre-render callback for smooth dead-reckoning interpolation
+    this._interpolationBound = this._interpolatePositions.bind(this);
+    viewer.scene.preRender.addEventListener(this._interpolationBound);
   }
 
   /**
@@ -77,7 +113,8 @@ export class EntityRenderer {
     }
 
     // --- Selection ---
-    this._updateSelection(selection.entityId || null);
+    const selectedIds = selection.selectedIds || (selection.entityId ? [selection.entityId] : []);
+    this._updateMultiSelection(selectedIds, selection.entityId || null);
 
     // CRITICAL: With requestRenderMode, Cesium won't re-render
     // unless we explicitly request it after programmatic changes
@@ -85,11 +122,12 @@ export class EntityRenderer {
   }
 
   /**
-   * Apply delta state — only position/heading/speed updates
+   * Apply delta state — position/heading/speed updates with orientation
    */
   applyDelta(deltaMsg) {
     const aircraft = deltaMsg.aircraft || {};
     const selection = deltaMsg.selection || {};
+    const now = performance.now();
 
     for (const [id, delta] of Object.entries(aircraft)) {
       const entry = this.aircraftEntities.get(id);
@@ -98,22 +136,53 @@ export class EntityRenderer {
       const pos = Cartesian3.fromDegrees(delta.lon, delta.lat, delta.alt);
       entry.entity.position = pos;
 
-      // Update orientation (heading/pitch/roll)
-      const heading = CesiumMath.toRadians(delta.heading || 0);
-      const pitch = CesiumMath.toRadians(delta.pitch || 0);
-      const roll = CesiumMath.toRadians(delta.roll || 0);
+      // Update orientation (heading/pitch/roll) with model heading offset
+      const modelOffset = this.modelHeadingOffsets[entry.modelType] || 0;
+      const heading = CesiumMath.toRadians(delta.heading ?? 0) + modelOffset;
+      const pitch = CesiumMath.toRadians(delta.pitch ?? 0);
+      const roll = CesiumMath.toRadians(delta.roll ?? 0);
       const hpr = new HeadingPitchRoll(heading, pitch, roll);
       entry.entity.orientation = Transforms.headingPitchRollQuaternion(pos, hpr);
 
-      // Update label position + text
+      // Store authoritative state for dead-reckoning interpolation
+      entry.lastState = {
+        lat: delta.lat,
+        lon: delta.lon,
+        alt: delta.alt,
+        heading: delta.heading ?? 0,
+        pitch: delta.pitch ?? 0,
+        roll: delta.roll ?? 0,
+        speed: delta.speed ?? 0,
+        verticalSpeed: delta.verticalSpeed ?? 0,
+        magneticHeading: delta.magneticHeading ?? 0,
+        groundTrack: delta.groundTrack ?? 0,
+        groundSpeed: delta.groundSpeed ?? 0,
+        turnRate: delta.turnRate ?? 0,
+        gLoad: delta.gLoad ?? 1,
+        timestamp: now,
+      };
+
+      // Update label with full telemetry
       if (entry.label) {
         entry.label.position = pos;
-        entry.label.label.text = `${entry.callSign || id}\n${delta.alt?.toFixed(0) || 0}m | ${delta.speed?.toFixed(0) || 0}m/s`;
+        const hdg = Math.round(delta.heading ?? 0).toString().padStart(3, "0");
+        const mag = Math.round(delta.magneticHeading ?? 0).toString().padStart(3, "0");
+        const alt = Math.round(delta.alt ?? 0);
+        const spd = Math.round(delta.speed ?? 0);
+        const vs = delta.verticalSpeed ?? 0;
+        const vsStr = vs > 0.5 ? `↑${Math.round(vs)}` : vs < -0.5 ? `↓${Math.abs(Math.round(vs))}` : "—";
+        const r = (delta.roll ?? 0).toFixed(1);
+        const p = (delta.pitch ?? 0).toFixed(1);
+        entry.label.label.text =
+          `${entry.callSign || id}\n` +
+          `H${hdg}° M${mag}° ${alt}m\n` +
+          `${spd}m/s ${vsStr} R${r}° P${p}°`;
       }
     }
 
     if (selection.entityId !== undefined) {
-      this._updateSelection(selection.entityId);
+      const selectedIds = selection.selectedIds || (selection.entityId ? [selection.entityId] : []);
+      this._updateMultiSelection(selectedIds, selection.entityId);
     }
 
     this.viewer.scene.requestRender();
@@ -152,13 +221,15 @@ export class EntityRenderer {
     const lat = state.lat || 0;
     const alt = state.alt || 0;
     const position = Cartesian3.fromDegrees(lon, lat, alt);
+    const modelType = state.type || "Fighter";
     const modelUri =
-      state.modelUri || this.defaultModels[state.type] || this.defaultModels.Fighter;
+      state.modelUri || this.defaultModels[modelType] || this.defaultModels.Fighter;
 
-    // Heading/Pitch/Roll orientation
-    const heading = CesiumMath.toRadians(state.heading || 0);
-    const pitch = CesiumMath.toRadians(state.pitch || 0);
-    const roll = CesiumMath.toRadians(state.roll || 0);
+    // Heading/Pitch/Roll orientation with model heading offset
+    const modelOffset = this.modelHeadingOffsets[modelType] || 0;
+    const heading = CesiumMath.toRadians(state.heading ?? 0) + modelOffset;
+    const pitch = CesiumMath.toRadians(state.pitch ?? 0);
+    const roll = CesiumMath.toRadians(state.roll ?? 0);
     const hpr = new HeadingPitchRoll(heading, pitch, roll);
     const orientation = Transforms.headingPitchRollQuaternion(position, hpr);
 
@@ -195,8 +266,10 @@ export class EntityRenderer {
       entity,
       label,
       callSign: state.callSign || id,
+      modelType: modelType,
       trailPositions: [],
       trailEntity: null,
+      lastState: null, // for dead-reckoning interpolation
     });
 
     this.viewer.scene.requestRender();
@@ -211,16 +284,22 @@ export class EntityRenderer {
     entry.entity.position = pos;
     entry.callSign = state.callSign || id;
 
-    // Update orientation (heading/pitch/roll)
-    const heading = CesiumMath.toRadians(state.heading || 0);
-    const pitch = CesiumMath.toRadians(state.pitch || 0);
-    const roll = CesiumMath.toRadians(state.roll || 0);
+    // Update orientation with model heading offset
+    const modelOffset = this.modelHeadingOffsets[entry.modelType] || 0;
+    const heading = CesiumMath.toRadians(state.heading ?? 0) + modelOffset;
+    const pitch = CesiumMath.toRadians(state.pitch ?? 0);
+    const roll = CesiumMath.toRadians(state.roll ?? 0);
     const hpr = new HeadingPitchRoll(heading, pitch, roll);
     entry.entity.orientation = Transforms.headingPitchRollQuaternion(pos, hpr);
 
     if (entry.label) {
       entry.label.position = pos;
-      entry.label.label.text = `${state.callSign || id}\n${(state.alt || 0).toFixed(0)}m | ${(state.speed || 0).toFixed(0)}m/s`;
+      const hdg = Math.round(state.heading ?? 0).toString().padStart(3, "0");
+      const mag = Math.round(state.magneticHeading ?? 0).toString().padStart(3, "0");
+      entry.label.label.text =
+        `${state.callSign || id}\n` +
+        `H${hdg}° M${mag}° ${Math.round(state.alt || 0)}m\n` +
+        `${Math.round(state.speed || 0)}m/s`;
     }
 
     // Trail
@@ -340,30 +419,117 @@ export class EntityRenderer {
   }
 
   _updateSelection(entityId) {
-    // De-highlight previous
-    if (this.selectedEntityId) {
-      const prev = this.aircraftEntities.get(this.selectedEntityId);
-      if (prev && prev.label) {
-        prev.label.label.fillColor = Color.GHOSTWHITE;
-        prev.label.label.scale = 1.0;
+    this._updateMultiSelection(entityId ? [entityId] : [], entityId);
+  }
+
+  /**
+   * Multi-selection highlighting:
+   * - Primary (entityId): Yellow label, 1.5x scale, camera tracking
+   * - Secondary (other selectedIds): Cyan label, 1.2x scale, no camera tracking
+   * - Unselected: Ghost white label, 1.0x scale
+   */
+  _updateMultiSelection(selectedIds, primaryId) {
+    const selectedSet = new Set(selectedIds || []);
+
+    // De-highlight ALL previously highlighted entities
+    for (const [id, entry] of this.aircraftEntities) {
+      if (entry.label) {
+        if (id === primaryId) {
+          // Primary: Yellow + large
+          entry.label.label.fillColor = Color.YELLOW;
+          entry.label.label.scale = 1.5;
+        } else if (selectedSet.has(id)) {
+          // Secondary: Cyan + medium
+          entry.label.label.fillColor = Color.CYAN;
+          entry.label.label.scale = 1.2;
+        } else {
+          // Unselected: Ghost white + normal
+          entry.label.label.fillColor = Color.GHOSTWHITE;
+          entry.label.label.scale = 1.0;
+        }
       }
     }
 
-    this.selectedEntityId = entityId;
+    this.selectedEntityId = primaryId;
 
-    // Highlight new — enlarged yellow label + camera tracking
-    if (entityId) {
-      const entry = this.aircraftEntities.get(entityId);
-      if (entry) {
-        if (entry.label) {
-          entry.label.label.fillColor = Color.YELLOW;
-          entry.label.label.scale = 1.5;
-        }
-        // Track the selected entity (camera follows it)
-        if (entry.entity) {
-          this.viewer.trackedEntity = entry.entity;
-        }
+    // Camera tracks primary entity only
+    if (primaryId) {
+      const entry = this.aircraftEntities.get(primaryId);
+      if (entry && entry.entity) {
+        this.viewer.trackedEntity = entry.entity;
       }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Dead-reckoning interpolation for smooth 60fps animation
+  // Qt sends state at 20Hz; this fills the 3 frames between
+  // each update using great-circle position extrapolation.
+  // ═══════════════════════════════════════════════════════════
+  _interpolatePositions() {
+    const now = performance.now();
+    let anyMoved = false;
+
+    for (const [id, entry] of this.aircraftEntities) {
+      if (!entry.lastState) continue;
+
+      // Only interpolate selected entity for performance
+      // Other aircraft update at bridge rate (~7Hz) which is smooth enough
+      if (this.selectedEntityId && id !== this.selectedEntityId) continue;
+
+      const state = entry.lastState;
+      const elapsed = (now - state.timestamp) / 1000.0; // seconds
+
+      // Only interpolate between ticks (5ms..150ms), not for stale data
+      if (elapsed <= 0.005 || elapsed > 0.15 || state.speed < 1.0) continue;
+
+      // Great-circle destination: extrapolate position
+      const dist = state.speed * elapsed;
+      const headingRad = state.heading * DEG_TO_RAD;
+      const lat1 = state.lat * DEG_TO_RAD;
+      const lon1 = state.lon * DEG_TO_RAD;
+      const delta = dist / EARTH_RADIUS;
+
+      const sinLat1 = Math.sin(lat1);
+      const cosLat1 = Math.cos(lat1);
+      const sinDelta = Math.sin(delta);
+      const cosDelta = Math.cos(delta);
+
+      const lat2 = Math.asin(
+        sinLat1 * cosDelta + cosLat1 * sinDelta * Math.cos(headingRad)
+      );
+      const lon2 =
+        lon1 +
+        Math.atan2(
+          Math.sin(headingRad) * sinDelta * cosLat1,
+          cosDelta - sinLat1 * Math.sin(lat2)
+        );
+
+      const interpLat = lat2 * RAD_TO_DEG;
+      const interpLon = lon2 * RAD_TO_DEG;
+      const interpAlt = state.alt + state.verticalSpeed * elapsed;
+
+      const pos = Cartesian3.fromDegrees(interpLon, interpLat, interpAlt);
+      entry.entity.position = pos;
+
+      // Orientation stays constant between ticks (heading/pitch/roll from last delta)
+      const modelOffset = this.modelHeadingOffsets[entry.modelType] || 0;
+      const heading = CesiumMath.toRadians(state.heading) + modelOffset;
+      const pitch = CesiumMath.toRadians(state.pitch);
+      const roll = CesiumMath.toRadians(state.roll);
+      const hpr = new HeadingPitchRoll(heading, pitch, roll);
+      entry.entity.orientation = Transforms.headingPitchRollQuaternion(pos, hpr);
+
+      // Label follows
+      if (entry.label) {
+        entry.label.position = pos;
+      }
+
+      anyMoved = true;
+    }
+
+    if (anyMoved) {
+      this.viewer.scene.requestRender();
     }
   }
 }

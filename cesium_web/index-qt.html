@@ -21,7 +21,8 @@
   <!-- Cesium map container — fills entire window, no UI panels -->
   <div id="cesiumContainer"></div>
 
-  <!-- qwebchannel.js is injected by Qt via QWebEngineScript at DocumentCreation -->
+  <!-- qwebchannel.js must be loaded BEFORE the module so QWebChannel is globally defined -->
+  <script src="/qwebchannel.js"></script>
   <!-- Qt-optimized entry point (no OSM buildings, no ControlPanel, no TcpClient) -->
   <script type="module" src="/src/main-qt.js"></script>
 </body>

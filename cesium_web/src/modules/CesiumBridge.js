@@ -25,10 +25,10 @@ export class CesiumBridge {
    */
   async connect() {
     return new Promise((resolve, reject) => {
-      // Check if QWebChannel is available (injected by Qt)
-      if (typeof QWebChannel === "undefined") {
+      // Check if QWebChannel is available AND qt.webChannelTransport is set up by Qt
+      if (typeof QWebChannel === "undefined" || typeof qt === "undefined" || !qt.webChannelTransport) {
         console.warn(
-          "[CesiumBridge] QWebChannel not available — running standalone mode"
+          "[CesiumBridge] QWebChannel transport not available — running standalone mode"
         );
         this.connected = false;
         resolve(false);

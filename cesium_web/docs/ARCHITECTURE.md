@@ -80,7 +80,7 @@ User Action          ControlPanel     TcpClient      XmlBuilder    Server
     │                    │  Send XML     │               │            │
     │                    ├──────────────>                │            │
     │                    │               │  WS Send      │            │
-    │                    │               ├────────────────────────────>
+    │                    │               ├────────────────────────────
     │                    │               │               │            │
     │                    │               │  ACK/Response │            │
     │                    │               <────────────────────────────┤

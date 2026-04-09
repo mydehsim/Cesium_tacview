@@ -5,14 +5,19 @@
 #include "bridge/CesiumBridge.h"
 #include "bridge/StateSerializer.h"
 #include "simulation/SimulationEngine.h"
+#include "simulation/TrackRecorder.h"
+#include "simulation/PlaybackEngine.h"
 #include "input/InputManager.h"
 #include "ui/AircraftListPanel.h"
 #include "ui/AircraftInspector.h"
 #include "ui/RouteEditorPanel.h"
 #include "ui/SimulationLogPanel.h"
 #include "ui/CommandHistoryPanel.h"
+#include "ui/PlaybackControlPanel.h"
+#include "ui/TelemetryPanel.h"
 #include "ui/MapToolbar.h"
 #include "core/RouteState.h"
+#include "core/ScenarioManager.h"
 
 #include <QKeyEvent>
 #include <QStatusBar>
@@ -26,6 +31,7 @@
 #include <QScreen>
 #include <QLabel>
 #include <QDebug>
+#include <QFileDialog>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -35,6 +41,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_bridge = new CesiumBridge(m_appState, this);
     m_simEngine = new SimulationEngine(m_appState, this);
     m_inputManager = new InputManager(m_appState, m_simEngine, m_bridge, this);
+    m_scenarioManager = new ScenarioManager(this);
 
     // Vite dev server — auto-start before loading Cesium
     QString webDir = QStringLiteral(WEB_CONTENT_PATH);
@@ -88,6 +95,15 @@ void MainWindow::setupUi()
     // Right column: Log + command history (tabbed)
     auto *rightSplitter = new QSplitter(Qt::Vertical);
 
+    // Playback controls
+    m_playbackPanel = new PlaybackControlPanel(
+        m_appState->playbackEngine(), m_appState->trackRecorder(), this);
+    rightSplitter->addWidget(m_playbackPanel);
+
+    // Telemetry charts
+    m_telemetryPanel = new TelemetryPanel(this);
+    rightSplitter->addWidget(m_telemetryPanel);
+
     auto *logTabs = new QTabWidget;
     m_logPanel = new SimulationLogPanel(this);
     m_cmdHistoryPanel = new CommandHistoryPanel(this);
@@ -114,8 +130,10 @@ void MainWindow::setupUi()
 
     rightSplitter->addWidget(statusLabel);
     rightSplitter->addWidget(logTabs);
-    rightSplitter->setStretchFactor(0, 1);
-    rightSplitter->setStretchFactor(1, 2);
+    rightSplitter->setStretchFactor(0, 0); // playback controls — compact
+    rightSplitter->setStretchFactor(1, 2); // telemetry charts
+    rightSplitter->setStretchFactor(2, 1); // status label
+    rightSplitter->setStretchFactor(3, 2); // log tabs
 
     centralSplitter->addWidget(leftSplitter);
     centralSplitter->addWidget(rightSplitter);
@@ -126,7 +144,13 @@ void MainWindow::setupUi()
 
     // --- Menu Bar ---
     auto *fileMenu = menuBar()->addMenu(tr("&File"));
-    fileMenu->addAction(tr("&Quit"), this, &QWidget::close, QKeySequence::Quit);
+    fileMenu->addAction(tr("&Save Scenario..."), QKeySequence::Save, this, &MainWindow::onSaveScenario);
+    fileMenu->addAction(tr("&Load Scenario..."), QKeySequence::Open, this, &MainWindow::onLoadScenario);
+    fileMenu->addSeparator();
+    fileMenu->addAction(tr("&Export Recording..."), this, &MainWindow::onExportRecording);
+    fileMenu->addAction(tr("&Import Recording..."), this, &MainWindow::onImportRecording);
+    fileMenu->addSeparator();
+    fileMenu->addAction(tr("&Quit"), QKeySequence::Quit, this, &QWidget::close);
 
     auto *simMenu = menuBar()->addMenu(tr("&Simulation"));
     simMenu->addAction(tr("&Start"), m_simEngine, &SimulationEngine::start);
@@ -134,7 +158,7 @@ void MainWindow::setupUi()
     simMenu->addAction(tr("Sto&p"), m_simEngine, &SimulationEngine::stop);
 
     auto *acMenu = menuBar()->addMenu(tr("&Aircraft"));
-    acMenu->addAction(tr("&Create Aircraft"), this, &MainWindow::onCreateAircraft, QKeySequence(QStringLiteral("Ctrl+N")));
+    acMenu->addAction(tr("&Create Aircraft"), QKeySequence(QStringLiteral("Ctrl+N")), this, &MainWindow::onCreateAircraft);
 
     auto *viewMenu = menuBar()->addMenu(tr("&View"));
     viewMenu->addAction(tr("Show &Map Window"), m_mapWindow, &QWidget::show);
@@ -183,6 +207,17 @@ void MainWindow::setupConnections()
     connect(m_viteProcess, &ViteProcess::ready, this, &MainWindow::onViteReady);
     connect(m_viteProcess, &ViteProcess::errorOccurred, this, &MainWindow::onViteError);
     connect(m_viteProcess, &ViteProcess::logMessage, m_logPanel, &SimulationLogPanel::appendLog);
+
+    // Playback panel logs
+    connect(m_playbackPanel, &PlaybackControlPanel::logMessage, m_logPanel, &SimulationLogPanel::appendLog);
+
+    // Playback engine: push delta to Cesium on each frame
+    connect(m_appState->playbackEngine(), &PlaybackEngine::frameChanged, this, [this](int, int)
+            { m_bridge->pushDelta(); });
+    connect(m_appState->playbackEngine(), &PlaybackEngine::logMessage, m_logPanel, &SimulationLogPanel::appendLog);
+
+    // Scenario manager logs
+    connect(m_scenarioManager, &ScenarioManager::logMessage, m_logPanel, &SimulationLogPanel::appendLog);
 
     // MapToolbar "Fly" pressed → ensure simulation engine is running
     connect(m_mapWindow->toolbar(), &MapToolbar::requestSimStart, this, [this]()
@@ -268,17 +303,28 @@ void MainWindow::onViteError(const QString &msg)
 {
     m_logPanel->appendLog(QStringLiteral("Vite ERROR: %1").arg(msg));
     statusBar()->showMessage(QStringLiteral("Vite Error: %1").arg(msg));
+
+    // Vite may have started after the timeout — try loading anyway
+    m_logPanel->appendLog(QStringLiteral("Attempting to load Cesium anyway..."));
+    m_mapWindow->loadCesium();
 }
 
 void MainWindow::onTickCompleted(quint64 tick)
 {
-    // Push delta state to Cesium every tick
-    m_bridge->pushDelta();
+    // Push delta state to Cesium every 3 ticks (~7Hz bridge, physics still 20Hz)
+    if (tick % 3 == 0)
+        m_bridge->pushDelta();
 
-    // Update inspector every 5 ticks (~4 times/sec)
+    // Record tick for playback
+    auto *recorder = m_appState->trackRecorder();
+    if (recorder->isRecording())
+        recorder->capture(tick, m_appState->aircraftManager()->allAircraft());
+
+    // Update inspector + telemetry every 5 ticks (~4 times/sec)
     if (tick % 5 == 0)
     {
         m_inspectorPanel->refresh();
+        m_telemetryPanel->update(m_appState);
         statusBar()->showMessage(QStringLiteral("Tick: %1 | Aircraft: %2 | Selected: %3")
                                      .arg(tick)
                                      .arg(m_appState->aircraftManager()->count())
@@ -400,4 +446,86 @@ void MainWindow::createDemonstrationScenario()
 
     m_logPanel->appendLog(QStringLiteral("Demo scenario loaded: 2 aircraft, 1 route"));
     m_bridge->pushFullSync();
+}
+
+void MainWindow::onSaveScenario()
+{
+    QString filePath = QFileDialog::getSaveFileName(this, tr("Save Scenario"),
+                                                    QString(), tr("Tacview Scenario (*.tacscen)"));
+    if (filePath.isEmpty())
+        return;
+
+    if (!filePath.endsWith(QStringLiteral(".tacscen"), Qt::CaseInsensitive))
+        filePath += QStringLiteral(".tacscen");
+
+    bool ok = m_scenarioManager->saveScenario(filePath, m_appState,
+                                              m_appState->trackRecorder());
+    if (ok)
+        m_logPanel->appendLog(QStringLiteral("Scenario saved: %1").arg(filePath));
+    else
+        QMessageBox::warning(this, tr("Save Error"), m_scenarioManager->lastError());
+}
+
+void MainWindow::onLoadScenario()
+{
+    QString filePath = QFileDialog::getOpenFileName(this, tr("Load Scenario"),
+                                                    QString(), tr("Tacview Scenario (*.tacscen)"));
+    if (filePath.isEmpty())
+        return;
+
+    m_simEngine->stop();
+    bool ok = m_scenarioManager->loadScenario(filePath, m_appState);
+    if (ok)
+    {
+        m_bridge->pushFullSync();
+        m_telemetryPanel->clear();
+        m_logPanel->appendLog(QStringLiteral("Scenario loaded: %1").arg(filePath));
+    }
+    else
+    {
+        QMessageBox::warning(this, tr("Load Error"), m_scenarioManager->lastError());
+    }
+}
+
+void MainWindow::onExportRecording()
+{
+    if (m_appState->trackRecorder()->snapshotCount() == 0)
+    {
+        QMessageBox::information(this, tr("Export"), tr("No recording data to export."));
+        return;
+    }
+
+    QString filePath = QFileDialog::getSaveFileName(this, tr("Export Recording"),
+                                                    QString(), tr("Tacview Recording (*.tacrec)"));
+    if (filePath.isEmpty())
+        return;
+
+    if (!filePath.endsWith(QStringLiteral(".tacrec"), Qt::CaseInsensitive))
+        filePath += QStringLiteral(".tacrec");
+
+    bool ok = m_scenarioManager->exportRecording(filePath, m_appState->trackRecorder());
+    if (ok)
+        m_logPanel->appendLog(QStringLiteral("Recording exported: %1").arg(filePath));
+    else
+        QMessageBox::warning(this, tr("Export Error"), m_scenarioManager->lastError());
+}
+
+void MainWindow::onImportRecording()
+{
+    QString filePath = QFileDialog::getOpenFileName(this, tr("Import Recording"),
+                                                    QString(), tr("Tacview Recording (*.tacrec)"));
+    if (filePath.isEmpty())
+        return;
+
+    bool ok = m_scenarioManager->importRecording(filePath, m_appState->trackRecorder());
+    if (ok)
+    {
+        // Load into playback engine
+        m_appState->playbackEngine()->loadRecording(m_appState->trackRecorder()->snapshots());
+        m_logPanel->appendLog(QStringLiteral("Recording imported: %1").arg(filePath));
+    }
+    else
+    {
+        QMessageBox::warning(this, tr("Import Error"), m_scenarioManager->lastError());
+    }
 }

@@ -32,6 +32,7 @@ set(PROJECT_SOURCES
     src/core/RouteManager.h    src/core/RouteManager.cpp
     src/core/SelectionManager.h src/core/SelectionManager.cpp
     src/core/CommandTypes.h
+    src/core/ScenarioManager.h   src/core/ScenarioManager.cpp
 
     # Simulation
     src/simulation/SimulationEngine.h  src/simulation/SimulationEngine.cpp
@@ -39,6 +40,8 @@ set(PROJECT_SOURCES
     src/simulation/KinematicModel.h    src/simulation/KinematicModel.cpp
     src/simulation/ManualController.h  src/simulation/ManualController.cpp
     src/simulation/AutopilotController.h src/simulation/AutopilotController.cpp
+    src/simulation/TrackRecorder.h  src/simulation/TrackRecorder.cpp
+    src/simulation/PlaybackEngine.h src/simulation/PlaybackEngine.cpp
 
     # Bridge
     src/bridge/CesiumBridge.h  src/bridge/CesiumBridge.cpp
@@ -52,6 +55,8 @@ set(PROJECT_SOURCES
     src/ui/SimulationLogPanel.h src/ui/SimulationLogPanel.cpp
     src/ui/CommandHistoryPanel.h src/ui/CommandHistoryPanel.cpp
     src/ui/MapToolbar.h         src/ui/MapToolbar.cpp
+    src/ui/PlaybackControlPanel.h src/ui/PlaybackControlPanel.cpp
+    src/ui/TelemetryPanel.h      src/ui/TelemetryPanel.cpp
 
     # Input
     src/input/InputManager.h   src/input/InputManager.cpp

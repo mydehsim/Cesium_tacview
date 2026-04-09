@@ -97,7 +97,8 @@ void ViteProcess::pollServer()
     if (m_pollAttempts > MAX_POLL_ATTEMPTS)
     {
         m_pollTimer.stop();
-        emit errorOccurred(QStringLiteral("Vite dev server did not start within 30 seconds"));
+        emit errorOccurred(QStringLiteral("Vite dev server did not start within %1 seconds")
+                               .arg(MAX_POLL_ATTEMPTS / 2));
         return;
     }
 

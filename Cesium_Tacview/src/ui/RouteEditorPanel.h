@@ -5,6 +5,7 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QComboBox>
+#include <QLabel>
 
 class AppState;
 class CesiumBridge;
@@ -26,6 +27,8 @@ private slots:
     void onApplyRoute();
     void onRouteSelected(int index);
     void onLoopToggled(bool checked);
+    void onMoveUp();
+    void onMoveDown();
 
 private:
     AppState *m_appState;
@@ -37,6 +40,9 @@ private:
     QPushButton *m_removeBtn;
     QPushButton *m_applyBtn;
     QPushButton *m_loopBtn;
+    QPushButton *m_upBtn;
+    QPushButton *m_downBtn;
+    QLabel *m_distanceLabel;
 };
 
 #endif // ROUTEEDITORPANEL_H

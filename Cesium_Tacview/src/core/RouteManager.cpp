@@ -58,6 +58,17 @@ bool RouteManager::addWaypoint(const QString &routeId, const Waypoint &wp)
     return true;
 }
 
+bool RouteManager::insertWaypoint(const QString &routeId, int index, const Waypoint &wp)
+{
+    auto *r = route(routeId);
+    if (!r || index < 0 || index > r->waypoints.size())
+        return false;
+    r->waypoints.insert(index, wp);
+    emit routeUpdated(routeId);
+    emit stateChanged();
+    return true;
+}
+
 bool RouteManager::removeWaypoint(const QString &routeId, int index)
 {
     auto *r = route(routeId);
@@ -78,6 +89,41 @@ bool RouteManager::moveWaypoint(const QString &routeId, int index,
     r->waypoints[index].lat = lat;
     r->waypoints[index].lon = lon;
     r->waypoints[index].alt = alt;
+    emit routeUpdated(routeId);
+    emit stateChanged();
+    return true;
+}
+
+bool RouteManager::reorderWaypoint(const QString &routeId, int fromIndex, int toIndex)
+{
+    auto *r = route(routeId);
+    if (!r || fromIndex < 0 || fromIndex >= r->waypoints.size() ||
+        toIndex < 0 || toIndex >= r->waypoints.size() || fromIndex == toIndex)
+        return false;
+    Waypoint wp = r->waypoints.takeAt(fromIndex);
+    r->waypoints.insert(toIndex, wp);
+    emit routeUpdated(routeId);
+    emit stateChanged();
+    return true;
+}
+
+bool RouteManager::setWaypointSpeed(const QString &routeId, int index, double speed)
+{
+    auto *r = route(routeId);
+    if (!r || index < 0 || index >= r->waypoints.size())
+        return false;
+    r->waypoints[index].speedOverride = speed;
+    emit routeUpdated(routeId);
+    emit stateChanged();
+    return true;
+}
+
+bool RouteManager::setLoopMode(const QString &routeId, bool loop)
+{
+    auto *r = route(routeId);
+    if (!r)
+        return false;
+    r->loopMode = loop;
     emit routeUpdated(routeId);
     emit stateChanged();
     return true;

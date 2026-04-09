@@ -1,0 +1,57 @@
+{
+    "global_low": {
+        "description": "Worldwide coverage at low zoom (continent-level detail)",
+        "bbox": [
+            -180,
+            -85,
+            180,
+            85
+        ],
+        "zoom_min": 0,
+        "zoom_max": 6
+    },
+    "turkey_medium": {
+        "description": "Turkey region at medium zoom (city-level detail)",
+        "bbox": [
+            25.5,
+            35.5,
+            45.0,
+            42.5
+        ],
+        "zoom_min": 7,
+        "zoom_max": 12
+    },
+    "turkey_high": {
+        "description": "Turkey region at high zoom (neighborhood-level detail, ~4GB)",
+        "bbox": [
+            25.5,
+            35.5,
+            45.0,
+            42.5
+        ],
+        "zoom_min": 13,
+        "zoom_max": 15
+    },
+    "istanbul_detail": {
+        "description": "Istanbul metro area at high zoom (~500MB)",
+        "bbox": [
+            28.5,
+            40.8,
+            29.5,
+            41.3
+        ],
+        "zoom_min": 13,
+        "zoom_max": 16
+    },
+    "marmara": {
+        "description": "Marmara region at medium-high zoom",
+        "bbox": [
+            26.0,
+            39.5,
+            30.5,
+            41.5
+        ],
+        "zoom_min": 7,
+        "zoom_max": 14
+    }
+}

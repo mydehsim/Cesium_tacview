@@ -20,8 +20,12 @@ public:
 
     // Waypoint operations
     bool addWaypoint(const QString &routeId, const Waypoint &wp);
+    bool insertWaypoint(const QString &routeId, int index, const Waypoint &wp);
     bool removeWaypoint(const QString &routeId, int index);
     bool moveWaypoint(const QString &routeId, int index, double lat, double lon, double alt);
+    bool reorderWaypoint(const QString &routeId, int fromIndex, int toIndex);
+    bool setWaypointSpeed(const QString &routeId, int index, double speed);
+    bool setLoopMode(const QString &routeId, bool loop);
 
     void emitChanged() { emit stateChanged(); }
 

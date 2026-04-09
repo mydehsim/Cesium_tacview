@@ -33,6 +33,7 @@ signals:
 
     // Internal signals for Qt UI
     void entityClicked(const QString &entityId, const QString &entityType);
+    void entityCtrlClicked(const QString &entityId, const QString &entityType);
     void mapClicked(double lat, double lon, double alt);
     void waypointMoved(const QString &routeId, int waypointIndex, double lat, double lon, double alt);
     void waypointAdded(double lat, double lon, double alt);

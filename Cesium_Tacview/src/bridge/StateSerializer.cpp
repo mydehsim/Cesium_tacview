@@ -28,10 +28,14 @@ QJsonObject StateSerializer::serializeFullState(const AppState *state, quint64 t
     }
     msg[QStringLiteral("routes")] = rtObj;
 
-    // Selection
+    // Selection (with multi-selection support)
     QJsonObject sel;
     sel[QStringLiteral("entityId")] = state->selectionManager()->selectedEntityId();
     sel[QStringLiteral("type")] = static_cast<int>(state->selectionManager()->selectionType());
+    QJsonArray selIds;
+    for (const QString &id : state->selectionManager()->selectedEntities())
+        selIds.append(id);
+    sel[QStringLiteral("selectedIds")] = selIds;
     msg[QStringLiteral("selection")] = sel;
 
     return msg;
@@ -48,13 +52,17 @@ QJsonObject StateSerializer::serializeDelta(const AppState *state, quint64 tick)
     const auto &allAc = state->aircraftManager()->allAircraft();
     for (auto it = allAc.cbegin(); it != allAc.cend(); ++it)
     {
-        acObj[it.key()] = it.value().toDeltaJson();
+        acObj[it.key()] = it.value().toRenderDelta();
     }
     msg[QStringLiteral("aircraft")] = acObj;
 
-    // Selection always included in delta
+    // Selection always included in delta (with multi-selection)
     QJsonObject sel;
     sel[QStringLiteral("entityId")] = state->selectionManager()->selectedEntityId();
+    QJsonArray selIds;
+    for (const QString &id : state->selectionManager()->selectedEntities())
+        selIds.append(id);
+    sel[QStringLiteral("selectedIds")] = selIds;
     msg[QStringLiteral("selection")] = sel;
 
     return msg;

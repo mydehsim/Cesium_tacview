@@ -38,7 +38,7 @@ private:
     QNetworkAccessManager *m_nam = nullptr;
     bool m_ready = false;
     int m_pollAttempts = 0;
-    static constexpr int MAX_POLL_ATTEMPTS = 60; // 30 seconds max wait
+    static constexpr int MAX_POLL_ATTEMPTS = 180; // 90 seconds max wait
 };
 
 #endif // VITEPROCESS_H

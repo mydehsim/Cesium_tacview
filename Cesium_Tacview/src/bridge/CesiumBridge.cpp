@@ -115,6 +115,19 @@ void CesiumBridge::handleEvent(const QJsonObject &event)
             pushFullSync();
         }
     }
+    else if (type == QLatin1String("EVT_ENTITY_CTRL_CLICKED"))
+    {
+        const QString entityId = payload.value(QStringLiteral("entityId")).toString();
+        const QString entityType = payload.value(QStringLiteral("entityType")).toString();
+        emit entityCtrlClicked(entityId, entityType);
+
+        // Toggle multi-selection
+        if (entityType == QLatin1String("aircraft"))
+        {
+            m_appState->selectionManager()->toggleSelection(entityId, SelectionType::AIRCRAFT);
+            pushFullSync();
+        }
+    }
     else if (type == QLatin1String("EVT_MAP_CLICKED"))
     {
         const double lat = payload.value(QStringLiteral("lat")).toDouble();

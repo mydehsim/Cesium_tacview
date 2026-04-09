@@ -19,6 +19,7 @@ qrc_*.cpp
 # Node
 cesium_web/node_modules/
 cesium_web/dist/
+cesium_web/public/tiles/
 .vite/
 
 # OS
