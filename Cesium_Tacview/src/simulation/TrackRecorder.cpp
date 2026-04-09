@@ -44,12 +44,11 @@ void TrackRecorder::capture(quint64 tick, const QMap<QString, AircraftState> &ai
     snap.tick = tick;
     snap.timestamp = QDateTime::currentMSecsSinceEpoch();
 
-    // Deep-copy aircraft states (without trail data to save memory)
+    // Compact copy — only kinematic/telemetry fields, no trail, no strings
     for (auto it = aircraft.cbegin(); it != aircraft.cend(); ++it)
     {
-        AircraftState acCopy = it.value();
-        acCopy.trail.clear(); // Don't record trail — reconstructed on playback
-        snap.aircraftStates.insert(it.key(), acCopy);
+        snap.aircraftStates.insert(it.key(),
+                                   CompactAircraftSnapshot::fromAircraft(it.value()));
     }
 
     m_snapshots.append(std::move(snap));

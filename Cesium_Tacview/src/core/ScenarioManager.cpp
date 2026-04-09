@@ -53,7 +53,22 @@ bool ScenarioManager::saveScenario(const QString &filePath, const AppState *stat
             QJsonObject acStates;
             for (auto it = snap.aircraftStates.cbegin(); it != snap.aircraftStates.cend(); ++it)
             {
-                acStates[it.key()] = it.value().toDeltaJson();
+                const auto &s = it.value();
+                QJsonObject o;
+                o[QStringLiteral("lat")] = s.lat;
+                o[QStringLiteral("lon")] = s.lon;
+                o[QStringLiteral("alt")] = s.alt;
+                o[QStringLiteral("heading")] = s.heading;
+                o[QStringLiteral("speed")] = s.speed;
+                o[QStringLiteral("verticalSpeed")] = s.verticalSpeed;
+                o[QStringLiteral("roll")] = s.roll;
+                o[QStringLiteral("pitch")] = s.pitch;
+                o[QStringLiteral("magneticHeading")] = s.magneticHeading;
+                o[QStringLiteral("groundTrack")] = s.groundTrack;
+                o[QStringLiteral("groundSpeed")] = s.groundSpeed;
+                o[QStringLiteral("turnRate")] = s.turnRate;
+                o[QStringLiteral("gLoad")] = s.gLoad;
+                acStates[it.key()] = o;
             }
             snapObj[QStringLiteral("aircraft")] = acStates;
             recArr.append(snapObj);
@@ -168,7 +183,22 @@ bool ScenarioManager::exportRecording(const QString &filePath, const TrackRecord
         QJsonObject acStates;
         for (auto it = snap.aircraftStates.cbegin(); it != snap.aircraftStates.cend(); ++it)
         {
-            acStates[it.key()] = it.value().toDeltaJson();
+            const auto &s = it.value();
+            QJsonObject o;
+            o[QStringLiteral("lat")] = s.lat;
+            o[QStringLiteral("lon")] = s.lon;
+            o[QStringLiteral("alt")] = s.alt;
+            o[QStringLiteral("heading")] = s.heading;
+            o[QStringLiteral("speed")] = s.speed;
+            o[QStringLiteral("verticalSpeed")] = s.verticalSpeed;
+            o[QStringLiteral("roll")] = s.roll;
+            o[QStringLiteral("pitch")] = s.pitch;
+            o[QStringLiteral("magneticHeading")] = s.magneticHeading;
+            o[QStringLiteral("groundTrack")] = s.groundTrack;
+            o[QStringLiteral("groundSpeed")] = s.groundSpeed;
+            o[QStringLiteral("turnRate")] = s.turnRate;
+            o[QStringLiteral("gLoad")] = s.gLoad;
+            acStates[it.key()] = o;
         }
         snapObj[QStringLiteral("aircraft")] = acStates;
         recArr.append(snapObj);
@@ -226,9 +256,22 @@ bool ScenarioManager::importRecording(const QString &filePath, TrackRecorder *re
         const QJsonObject acStates = snapObj.value(QStringLiteral("aircraft")).toObject();
         for (auto it = acStates.constBegin(); it != acStates.constEnd(); ++it)
         {
-            AircraftState ac = AircraftState::fromJson(it.value().toObject());
-            ac.id = it.key();
-            snap.aircraftStates.insert(it.key(), ac);
+            QJsonObject o = it.value().toObject();
+            CompactAircraftSnapshot cs;
+            cs.lat = o.value(QStringLiteral("lat")).toDouble();
+            cs.lon = o.value(QStringLiteral("lon")).toDouble();
+            cs.alt = o.value(QStringLiteral("alt")).toDouble();
+            cs.heading = o.value(QStringLiteral("heading")).toDouble();
+            cs.speed = o.value(QStringLiteral("speed")).toDouble();
+            cs.verticalSpeed = o.value(QStringLiteral("verticalSpeed")).toDouble();
+            cs.roll = o.value(QStringLiteral("roll")).toDouble();
+            cs.pitch = o.value(QStringLiteral("pitch")).toDouble();
+            cs.magneticHeading = o.value(QStringLiteral("magneticHeading")).toDouble();
+            cs.groundTrack = o.value(QStringLiteral("groundTrack")).toDouble();
+            cs.groundSpeed = o.value(QStringLiteral("groundSpeed")).toDouble();
+            cs.turnRate = o.value(QStringLiteral("turnRate")).toDouble();
+            cs.gLoad = o.value(QStringLiteral("gLoad")).toDouble();
+            snap.aircraftStates.insert(it.key(), cs);
         }
 
         snapshots.append(std::move(snap));

@@ -9,7 +9,7 @@ class StateSerializer
 {
 public:
     static QJsonObject serializeFullState(const AppState *state, quint64 tick);
-    static QJsonObject serializeDelta(const AppState *state, quint64 tick);
+    static QJsonObject serializeDelta(AppState *state, quint64 tick);
     static QJsonObject createCommand(const QString &type, const QJsonObject &payload);
 };
 

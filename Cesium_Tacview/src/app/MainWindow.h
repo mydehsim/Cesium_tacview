@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QThread>
 
 class AppState;
 class CesiumBridge;
@@ -59,6 +60,7 @@ private:
     AppState *m_appState;
     CesiumBridge *m_bridge;
     SimulationEngine *m_simEngine;
+    QThread m_simThread;
     InputManager *m_inputManager;
     ViteProcess *m_viteProcess;
     ScenarioManager *m_scenarioManager;

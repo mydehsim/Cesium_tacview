@@ -1,25 +1,28 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Cesium Tacview — Map</title>
-    <style>
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Cesium map container — fills entire window -->
-    <div id="cesiumContainer"></div>
 
-    <!-- Same entry point as Qt mode — fully offline, no TCP panel -->
-    <script type="module" src="/src/main-qt.js"></script>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <title>Cesium Tacview — Map</title>
+  <style>
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Cesium map container — fills entire window -->
+  <div id="cesiumContainer"></div>
+
+  <!-- Same entry point as Qt mode — fully offline, no TCP panel -->
+  <script type="module" src="/src/main-qt.js"></script>
+</body>
+
 </html>

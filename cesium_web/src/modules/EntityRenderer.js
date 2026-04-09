@@ -31,6 +31,7 @@ import {
   Math as CesiumMath,
   ConstantPositionProperty,
   Quaternion,
+  CallbackProperty,
 } from "cesium";
 
 // Earth radius for dead-reckoning calculations
@@ -178,6 +179,24 @@ export class EntityRenderer {
           `H${hdg}° M${mag}° ${alt}m\n` +
           `${spd}m/s ${vsStr} R${r}° P${p}°`;
       }
+
+      // Trail update (reuse CallbackProperty created in _updateAircraft)
+      entry.trailPositions.push(pos);
+      if (entry.trailPositions.length > 500) {
+        entry.trailPositions.shift();
+      }
+      if (!entry.trailEntity && entry.trailPositions.length > 2) {
+        const positions = entry.trailPositions;
+        entry.trailEntity = this.viewer.entities.add({
+          id: `trail_${id}`,
+          polyline: {
+            positions: new CallbackProperty(() => positions, false),
+            width: 2,
+            material: Color.YELLOW.withAlpha(0.7),
+            clampToGround: false,
+          },
+        });
+      }
     }
 
     if (selection.entityId !== undefined) {
@@ -308,19 +327,18 @@ export class EntityRenderer {
       entry.trailPositions.shift();
     }
 
-    // Create or update trail polyline
+    // Create trail polyline with CallbackProperty (avoids array copy per update)
     if (!entry.trailEntity && entry.trailPositions.length > 2) {
+      const positions = entry.trailPositions;
       entry.trailEntity = this.viewer.entities.add({
         id: `trail_${id}`,
         polyline: {
-          positions: entry.trailPositions,
+          positions: new CallbackProperty(() => positions, false),
           width: 2,
           material: Color.YELLOW.withAlpha(0.7),
           clampToGround: false,
         },
       });
-    } else if (entry.trailEntity) {
-      entry.trailEntity.polyline.positions = entry.trailPositions.slice();
     }
   }
 

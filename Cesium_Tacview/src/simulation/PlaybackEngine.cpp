@@ -100,34 +100,15 @@ void PlaybackEngine::applyFrame(int frame)
     const TickSnapshot &snap = m_snapshots.at(frame);
     auto *acMgr = m_appState->aircraftManager();
 
-    // Update existing aircraft or create them
+    // Update existing aircraft from snapshot
     for (auto it = snap.aircraftStates.cbegin(); it != snap.aircraftStates.cend(); ++it)
     {
         AircraftState *existing = acMgr->aircraft(it.key());
         if (existing)
         {
-            // Copy position/orientation data, preserve trail
-            const AircraftState &src = it.value();
-            existing->lat = src.lat;
-            existing->lon = src.lon;
-            existing->alt = src.alt;
-            existing->heading = src.heading;
-            existing->speed = src.speed;
-            existing->verticalSpeed = src.verticalSpeed;
-            existing->roll = src.roll;
-            existing->pitch = src.pitch;
-            existing->magneticHeading = src.magneticHeading;
-            existing->groundTrack = src.groundTrack;
-            existing->groundSpeed = src.groundSpeed;
-            existing->turnRate = src.turnRate;
-            existing->gLoad = src.gLoad;
+            it.value().applyTo(*existing);
             existing->addTrailPoint();
-        }
-        else
-        {
-            // Aircraft appeared in recording but doesn't exist — create it
-            AircraftState ac = it.value();
-            acMgr->createAircraft(ac);
+            existing->dirty = true;
         }
     }
 }

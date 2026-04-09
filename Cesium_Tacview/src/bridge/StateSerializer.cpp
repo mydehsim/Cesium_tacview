@@ -41,7 +41,7 @@ QJsonObject StateSerializer::serializeFullState(const AppState *state, quint64 t
     return msg;
 }
 
-QJsonObject StateSerializer::serializeDelta(const AppState *state, quint64 tick)
+QJsonObject StateSerializer::serializeDelta(AppState *state, quint64 tick)
 {
     QJsonObject msg;
     msg[QStringLiteral("type")] = QStringLiteral("STATE_DELTA");
@@ -49,10 +49,13 @@ QJsonObject StateSerializer::serializeDelta(const AppState *state, quint64 tick)
     msg[QStringLiteral("timestamp")] = QDateTime::currentMSecsSinceEpoch();
 
     QJsonObject acObj;
-    const auto &allAc = state->aircraftManager()->allAircraft();
-    for (auto it = allAc.cbegin(); it != allAc.cend(); ++it)
+    for (const QString &id : state->aircraftManager()->aircraftIds())
     {
-        acObj[it.key()] = it.value().toRenderDelta();
+        AircraftState *ac = state->aircraftManager()->aircraft(id);
+        if (!ac || !ac->dirty)
+            continue;
+        acObj[id] = ac->toRenderDelta();
+        ac->dirty = false;
     }
     msg[QStringLiteral("aircraft")] = acObj;
 

@@ -6,6 +6,7 @@
 SimulationEngine::SimulationEngine(AppState *appState, QObject *parent)
     : QObject(parent), m_appState(appState)
 {
+    m_timer.setParent(this); // ensure timer moves with us to worker thread
     connect(&m_timer, &QTimer::timeout, this, &SimulationEngine::tick);
     m_timer.setTimerType(Qt::PreciseTimer);
 }
@@ -56,6 +57,7 @@ void SimulationEngine::tick()
     auto *acMgr = m_appState->aircraftManager();
     auto *rtMgr = m_appState->routeManager();
     const QString controlTarget = m_appState->selectionManager()->activeControlTarget();
+    const InputState input = inputState(); // thread-safe snapshot
 
     // Update each aircraft
     for (const QString &id : acMgr->aircraftIds())
@@ -69,7 +71,7 @@ void SimulationEngine::tick()
         case ControlMode::MANUAL:
             if (id == controlTarget)
             {
-                ManualController::update(*ac, dt, m_inputState);
+                ManualController::update(*ac, dt, input);
             }
             KinematicModel::update(*ac, dt);
             break;
@@ -93,6 +95,8 @@ void SimulationEngine::tick()
             break;
         }
 
+        if (ac->controlMode != ControlMode::IDLE)
+            ac->dirty = true;
         ac->addTrailPoint();
     }
 

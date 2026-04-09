@@ -3,6 +3,8 @@
 
 #include <QObject>
 #include <QTimer>
+#include <QMutex>
+#include <QMutexLocker>
 #include "SimulationClock.h"
 #include "ManualController.h"
 
@@ -15,9 +17,20 @@ public:
     explicit SimulationEngine(AppState *appState, QObject *parent = nullptr);
 
     SimulationClock *clock() { return &m_clock; }
-    const InputState &inputState() const { return m_inputState; }
-    InputState &inputState() { return m_inputState; }
 
+    // Thread-safe input accessors
+    InputState inputState() const
+    {
+        QMutexLocker lk(&m_inputMutex);
+        return m_inputState;
+    }
+    void setInputState(const InputState &s)
+    {
+        QMutexLocker lk(&m_inputMutex);
+        m_inputState = s;
+    }
+
+public slots:
     void start();
     void stop();
     void pause();
@@ -38,6 +51,7 @@ private:
     QTimer m_timer;
     SimulationClock m_clock;
     InputState m_inputState;
+    mutable QMutex m_inputMutex;
 };
 
 #endif // SIMULATIONENGINE_H

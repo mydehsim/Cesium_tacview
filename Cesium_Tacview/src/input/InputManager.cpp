@@ -16,14 +16,15 @@ void InputManager::keyPressed(int key)
 {
     m_pressedKeys.insert(key);
 
-    // Update engine input state for continuous keys
-    auto &input = m_engine->inputState();
+    // Update engine input state for continuous keys (thread-safe)
+    InputState input;
     input.turnLeft = m_pressedKeys.contains(KeyBindings::TurnLeft) || m_pressedKeys.contains(KeyBindings::TurnLeft2);
     input.turnRight = m_pressedKeys.contains(KeyBindings::TurnRight) || m_pressedKeys.contains(KeyBindings::TurnRight2);
     input.speedUp = m_pressedKeys.contains(KeyBindings::SpeedUp) || m_pressedKeys.contains(KeyBindings::SpeedUp2);
     input.speedDown = m_pressedKeys.contains(KeyBindings::SpeedDown) || m_pressedKeys.contains(KeyBindings::SpeedDown2);
     input.climbUp = m_pressedKeys.contains(KeyBindings::ClimbUp);
     input.climbDown = m_pressedKeys.contains(KeyBindings::ClimbDown);
+    m_engine->setInputState(input);
 
     // Auto-switch to MANUAL mode on WASD input
     if (input.turnLeft || input.turnRight || input.speedUp ||
@@ -49,13 +50,14 @@ void InputManager::keyReleased(int key)
 {
     m_pressedKeys.remove(key);
 
-    auto &input = m_engine->inputState();
+    InputState input;
     input.turnLeft = m_pressedKeys.contains(KeyBindings::TurnLeft) || m_pressedKeys.contains(KeyBindings::TurnLeft2);
     input.turnRight = m_pressedKeys.contains(KeyBindings::TurnRight) || m_pressedKeys.contains(KeyBindings::TurnRight2);
     input.speedUp = m_pressedKeys.contains(KeyBindings::SpeedUp) || m_pressedKeys.contains(KeyBindings::SpeedUp2);
     input.speedDown = m_pressedKeys.contains(KeyBindings::SpeedDown) || m_pressedKeys.contains(KeyBindings::SpeedDown2);
     input.climbUp = m_pressedKeys.contains(KeyBindings::ClimbUp);
     input.climbDown = m_pressedKeys.contains(KeyBindings::ClimbDown);
+    m_engine->setInputState(input);
 }
 
 InputState InputManager::currentInputState() const

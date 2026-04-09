@@ -39,7 +39,9 @@ MainWindow::MainWindow(QWidget *parent)
     // Core systems
     m_appState = new AppState(this);
     m_bridge = new CesiumBridge(m_appState, this);
-    m_simEngine = new SimulationEngine(m_appState, this);
+    m_simEngine = new SimulationEngine(m_appState); // no parent — lives on worker thread
+    m_simEngine->moveToThread(&m_simThread);
+    m_simThread.start();
     m_inputManager = new InputManager(m_appState, m_simEngine, m_bridge, this);
     m_scenarioManager = new ScenarioManager(this);
 
@@ -63,6 +65,12 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    // Stop simulation thread
+    m_simEngine->stop();
+    m_simThread.quit();
+    m_simThread.wait();
+    delete m_simEngine;
+
     // Stop Vite dev server
     if (m_viteProcess)
         m_viteProcess->stop();
@@ -320,11 +328,13 @@ void MainWindow::onTickCompleted(quint64 tick)
     if (recorder->isRecording())
         recorder->capture(tick, m_appState->aircraftManager()->allAircraft());
 
-    // Update inspector + telemetry every 5 ticks (~4 times/sec)
+    // Update inspector + telemetry every 5 ticks (~4 times/sec), only if visible
     if (tick % 5 == 0)
     {
-        m_inspectorPanel->refresh();
-        m_telemetryPanel->update(m_appState);
+        if (m_inspectorPanel->isVisible())
+            m_inspectorPanel->refresh();
+        if (m_telemetryPanel->isVisible())
+            m_telemetryPanel->update(m_appState);
         statusBar()->showMessage(QStringLiteral("Tick: %1 | Aircraft: %2 | Selected: %3")
                                      .arg(tick)
                                      .arg(m_appState->aircraftManager()->count())

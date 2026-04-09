@@ -35,7 +35,7 @@ AircraftInspector::AircraftInspector(AppState *appState, QWidget *parent)
 
     connect(appState->selectionManager(), &SelectionManager::selectionChanged,
             this, [this](const QString &, SelectionType)
-            { refresh(); });
+            { if (isVisible()) refresh(); });
 }
 
 void AircraftInspector::refresh()

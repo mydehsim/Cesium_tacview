@@ -33,7 +33,8 @@ AircraftListPanel::AircraftListPanel(AppState *appState, CesiumBridge *bridge,
     connect(m_createBtn, &QPushButton::clicked, this, &AircraftListPanel::onCreateClicked);
     connect(m_deleteBtn, &QPushButton::clicked, this, &AircraftListPanel::onDeleteClicked);
 
-    connect(appState->aircraftManager(), &AircraftManager::stateChanged, this, &AircraftListPanel::refresh);
+    connect(appState->aircraftManager(), &AircraftManager::aircraftCreated, this, &AircraftListPanel::refresh);
+    connect(appState->aircraftManager(), &AircraftManager::aircraftRemoved, this, &AircraftListPanel::refresh);
     connect(appState->selectionManager(), &SelectionManager::selectionChanged, this, [this](const QString &, SelectionType)
             { refresh(); });
 }

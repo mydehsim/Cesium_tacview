@@ -5,6 +5,7 @@
 #include <QVector>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <array>
 
 enum class ControlMode
 {
@@ -61,23 +62,40 @@ struct AircraftState
     double targetSpeed = 0.0;
     double targetAlt = 0.0;
 
-    // Trail (last N positions for path rendering)
+    // Trail — O(1) ring buffer for path rendering
     struct TrailPoint
     {
         double lat;
         double lon;
         double alt;
     };
-    QVector<TrailPoint> trail;
     static constexpr int MAX_TRAIL = 500;
 
     void addTrailPoint()
     {
-        trail.append({lat, lon, alt});
-        if (trail.size() > MAX_TRAIL)
-            trail.removeFirst();
+        m_trailBuf[m_trailHead] = {lat, lon, alt};
+        m_trailHead = (m_trailHead + 1) % MAX_TRAIL;
+        if (m_trailCount < MAX_TRAIL)
+            ++m_trailCount;
     }
 
+    int trailCount() const { return m_trailCount; }
+
+    void clearTrail()
+    {
+        m_trailHead = 0;
+        m_trailCount = 0;
+    }
+
+    // Dirty flag for delta serialization — set by physics, cleared by serializer
+    bool dirty = false;
+
+private:
+    std::array<TrailPoint, MAX_TRAIL> m_trailBuf{};
+    int m_trailHead = 0;
+    int m_trailCount = 0;
+
+public:
     QJsonObject toJson() const
     {
         QJsonObject o;
